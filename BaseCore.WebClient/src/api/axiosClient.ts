@@ -1,0 +1,37 @@
+import axios from 'axios';
+
+const BASE_URL = 'https://localhost:7175/api';
+
+const axiosClient = axios.create({
+  baseURL: BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+axiosClient.interceptors.request.use((config) => {
+  // Đọc token mỗi request — không cache
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+axiosClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      const currentPath = window.location.pathname;
+      if (currentPath.includes('/admin') || currentPath.includes('/profile')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      }
+      // Các trang khác — throw error để component tự xử lý
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default axiosClient;
