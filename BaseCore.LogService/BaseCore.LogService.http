@@ -1,0 +1,6 @@
+@BaseCore.LogService_HostAddress = http://localhost:5078
+
+GET {{BaseCore.LogService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

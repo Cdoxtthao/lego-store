@@ -1,0 +1,6 @@
+@BaseCore.IOTService_HostAddress = http://localhost:5092
+
+GET {{BaseCore.IOTService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,6 @@
+@lego_microservice_HostAddress = http://localhost:5124
+
+GET {{lego_microservice_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,16 @@
+<Solution>
+  <Project Path="BaseCore.ApiGateway/BaseCore.ApiGateway.csproj" />
+  <Project Path="BaseCore.APIService/BaseCore.APIService.csproj" />
+  <Project Path="BaseCore.AuditLog/BaseCore.AuditLog.csproj" />
+  <Project Path="BaseCore.AuthService/BaseCore.AuthService.csproj" />
+  <Project Path="BaseCore.Common/BaseCore.Common.csproj" />
+  <Project Path="BaseCore.DTO/BaseCore.DTO.csproj" />
+  <Project Path="BaseCore.Entities/BaseCore.Entities.csproj" />
+  <Project Path="BaseCore.IOTService/BaseCore.IOTService.csproj" />
+  <Project Path="BaseCore.Libs/BaseCore.Libs.csproj" />
+  <Project Path="BaseCore.LogService/BaseCore.LogService.csproj" />
+  <Project Path="BaseCore.Repository/BaseCore.Repository.csproj" />
+  <Project Path="BaseCore.Services/BaseCore.Services.csproj" />
+  <Project Path="BaseCore.UnitTest/BaseCore.UnitTest.csproj" />
+  <Project Path="lego_microservice.csproj" />
+</Solution>

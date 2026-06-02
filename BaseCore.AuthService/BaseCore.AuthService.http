@@ -1,0 +1,6 @@
+@BaseCore.AuthService_HostAddress = http://localhost:5174
+
+GET {{BaseCore.AuthService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
