@@ -128,8 +128,8 @@ const CartPage = () => {
       const res = await cartApi.checkout(
         selectedAddress.fullAddress,
         paymentMethod,
-        note,
-        selectedItems
+        selectedItems,
+        note
       );
       setCart(null);
       refreshCart();

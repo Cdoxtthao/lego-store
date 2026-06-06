@@ -9,6 +9,7 @@ import { reviewApi } from '../api/reviewApi';
 import { cartApi } from '../api/cartApi';
 import { useCart } from '../context/CartContext';
 import { useNavigate } from 'react-router-dom';
+import imageCompression from 'browser-image-compression';
 
 const ProfilePage = ({ initialTab = 'info' }: { initialTab?: 'info' | 'password' | 'orders' }) => {
   const { user, login } = useAuth();
@@ -126,16 +127,25 @@ const ProfilePage = ({ initialTab = 'info' }: { initialTab?: 'info' | 'password'
 
     setUploadingAvatar(true);
     try {
+      const compressed = await imageCompression(file, {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 512,
+        useWebWorker: true,
+      });
+
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', compressed, file.name);
+
       const res = await axiosClient.post('/Image/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
+
       const newAvatarUrl = res.data.url;
       setForm(prev => ({ ...prev, avatarUrl: newAvatarUrl }));
       await profileApi.updateMe({ avatarUrl: newAvatarUrl });
-      const updatedUser = { ...user!, avatarUrl:newAvatarUrl };
+      const updatedUser = { ...user!, avatarUrl: newAvatarUrl };
       login(updatedUser);
+
     } catch {
       setInfoError('Upload ảnh thất bại');
     } finally {

@@ -39,7 +39,7 @@ namespace BaseCore.APIService.Controllers
             Directory.CreateDirectory(uploadPath);
 
             var filePath = Path.Combine(uploadPath, fileName);
-
+             
             using (var stream = new FileStream(filePath, FileMode.Create))
             {
                 await file.CopyToAsync(stream);

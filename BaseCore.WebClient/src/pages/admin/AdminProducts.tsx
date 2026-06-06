@@ -3,6 +3,7 @@ import { productApi } from '../../api/productApi';
 import { ProductResponse, ProductSearchRequest } from '../../types';
 import { getImageUrl } from '../../utils/imageHelper';
 import axiosClient from '../../api/axiosClient';
+import imageCompression from 'browser-image-compression';
 
 const AdminProducts = () => {
   const [products, setProducts] = useState<ProductResponse[]>([]);
@@ -337,27 +338,39 @@ const ProductModal = ({
   );
   const [uploadingExtra, setUploadingExtra] = useState(false);
 
-  const handleUploadExtraImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const files = Array.from(e.target.files || []);
-  if (!files.length) return;
+  const compressAndUpload = async (file: File): Promise<string> => {
+    const compressed = await imageCompression(file, {
+      maxSizeMB: 2,
+      maxWidthOrHeight: 1024,
+      useWebWorker: true,
+    });
 
-  setUploadingExtra(true);
-  try {
-    const uploaded: string[] = [];
-    for (const file of files) {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await axiosClient.post('/Image/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      uploaded.push(res.data.url);
-    }
-    setExtraImages(prev => [...prev, ...uploaded]);
+    const formData = new FormData();
+    formData.append('file', compressed, file.name);
+
+    const res = await axiosClient.post('/Image/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data.url;
+  };
+
+  const handleUploadExtraImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    setUploadingExtra(true);
+    try {
+      const uploaded: string[] = [];
+      for (const file of files) {
+        const url = await compressAndUpload(file); // ← dùng helper
+        uploaded.push(url);
+      }
+      setExtraImages(prev => [...prev, ...uploaded]);
     } catch {
       setError('Upload ảnh thất bại');
     } finally {
       setUploadingExtra(false);
-      e.target.value = ''; // reset input
+      e.target.value = '';
     }
   };
 
@@ -418,33 +431,24 @@ const ProductModal = ({
   };
 
   const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  // Preview ngay lập tức
-  const reader = new FileReader();
-  reader.onload = () => setPreviewImage(reader.result as string);
-  reader.readAsDataURL(file);
+    // Preview ngay
+    const reader = new FileReader();
+    reader.onload = () => setPreviewImage(reader.result as string);
+    reader.readAsDataURL(file);
 
-  // Upload lên server
-  setUploading(true);
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const res = await axiosClient.post('/Image/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-
-    // Server trả về đường dẫn ảnh
-    setForm({ ...form, imageUrl: res.data.url });
-  } catch (err) {
-    console.error('Upload lỗi:', err);
-    setError('Upload ảnh thất bại');
-  } finally {
-    setUploading(false);
-  }
-};
+    setUploading(true);
+    try {
+      const url = await compressAndUpload(file); // ← dùng helper
+      setForm({ ...form, imageUrl: url });
+    } catch {
+      setError('Upload ảnh thất bại');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const Field = ({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) => (
     <div>

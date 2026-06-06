@@ -22,26 +22,44 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
-    if (savedUser && token) {
-      try {
-        // Kiểm tra token chưa hết hạn
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const expiry = payload.exp * 1000;
-        if (Date.now() < expiry) {
-          setUser(JSON.parse(savedUser)); // ← chỉ set nếu token còn hạn
-        } else {
-          // Token hết hạn — xóa đi
+    const initAuth = async () => {
+      const savedUser = localStorage.getItem('user');
+      const token = localStorage.getItem('token');
+      if (savedUser && token) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          const expiry = payload.exp * 1000;
+          if (Date.now() < expiry) {
+            const parsed = JSON.parse(savedUser);
+            setUser(parsed); // set tạm trước
+
+            // ← Fetch avatarUrl mới nhất từ API
+            try {
+              const res = await fetch('https://localhost:7175/api/Users/me', {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (res.ok) {
+                const profile = await res.json();
+                const updated = { ...parsed, avatarUrl: profile.avatarUrl };
+                setUser(updated);
+                localStorage.setItem('user', JSON.stringify(updated));
+              }
+            } catch {
+              // Giữ user cũ nếu fetch lỗi
+            }
+
+          } else {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+          }
+        } catch {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
         }
-      } catch {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
       }
-    }
-    setAuthLoading(false);
+      setAuthLoading(false);
+    };
+    initAuth();
   }, []);
 
   const login = (data: AuthResponse) => {

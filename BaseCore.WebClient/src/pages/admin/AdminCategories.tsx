@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { categoryApi, CategoryResponse } from '../../api/categoryApi';
 import { getImageUrl } from '../../utils/imageHelper';
 import axiosClient from '../../api/axiosClient';
+import imageCompression from 'browser-image-compression';
 
 const AdminCategories = () => {
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
@@ -10,6 +11,23 @@ const AdminCategories = () => {
   const [editCategory, setEditCategory] = useState<CategoryResponse | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleteError, setDeleteError] = useState('');
+
+  const compressAndUpload = async (file: File): Promise<string> => {
+    const compressed = await imageCompression(file, {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 800,
+      useWebWorker: true,
+    });
+
+    const formData = new FormData();
+    formData.append('file', compressed, file.name);
+
+    const res = await axiosClient.post('/Image/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data.url;
+  };
+
 
   useEffect(() => { fetchCategories(); }, []);
 

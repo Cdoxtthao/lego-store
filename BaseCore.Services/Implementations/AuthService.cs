@@ -41,6 +41,7 @@ namespace BaseCore.Services.Implementations
                 FullName = user.FullName,
                 Email = user.Email,
                 Role = user.Role.Name,
+                AvatarUrl = user.AvatarUrl,
                 ExpiresAt = DateTime.UtcNow.AddHours(24),
             };
 

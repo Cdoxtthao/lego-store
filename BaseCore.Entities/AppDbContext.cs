@@ -100,6 +100,13 @@ namespace BaseCore.Entities
                  .WithMany()
                  .HasForeignKey(r => r.ProductId)
                  .OnDelete(DeleteBehavior.Restrict);
+
+            foreach (var property in modelBuilder.Model.GetEntityTypes()
+                .SelectMany(t => t.GetProperties())
+                .Where(p => p.ClrType == typeof(decimal) || p.ClrType == typeof(decimal?)))
+                    {
+                        property.SetColumnType("decimal(18,2)");
+                    }
         }
     }
 }

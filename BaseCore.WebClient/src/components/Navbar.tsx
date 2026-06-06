@@ -359,8 +359,9 @@ const ProductDropdown = ({ onClose }: { onClose: () => void }) => {
                 className="group cursor-pointer">
                 <div className="aspect-square bg-gray-50 rounded-xl overflow-hidden mb-2">
                   {p.imageUrl ? (
-                    <img src={p.imageUrl} alt={p.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                    <img src={getImageUrl(p.imageUrl)} alt={p.name}
+                      className="w-full h-full object-contain group-hover:scale-105 transition duration-300"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-4xl">🧱</div>
                   )}

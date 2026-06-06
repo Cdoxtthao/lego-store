@@ -26,10 +26,11 @@ export const cartApi = {
     await axiosClient.delete('/Cart');
   },
 
-  checkout: async (shippingAddress: string, paymentMethod: string, note?: string,  selectedItemIds: number[]) => {
+  checkout: async (shippingAddress: string, paymentMethod: string, selectedItemIds: number[], note?: string) => {
     const res = await axiosClient.post<OrderResponse>('/Cart/checkout', {
       shippingAddress,
       paymentMethod,
+      selectedItemIds,
       note,
     });
     return res.data;
