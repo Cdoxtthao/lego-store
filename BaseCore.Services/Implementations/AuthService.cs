@@ -112,9 +112,14 @@ namespace BaseCore.Services.Implementations
                 expires: DateTime.UtcNow.AddHours(24),
                 signingCredentials: credentials
             );
+            var tokenString = new JwtSecurityTokenHandler().WriteToken(token);
+
+            Console.WriteLine($"Token parts: {tokenString.Split('.').Length}"); // phải = 3
+            Console.WriteLine($"Token: {tokenString}");
+            return tokenString;
 
             // Chuyển thành chuỗi string để trả về
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            //return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
     }

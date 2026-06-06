@@ -5,13 +5,11 @@ import axiosClient from '../api/axiosClient';
 
 interface CartContextType {
   cartCount: number;
-  wishlistCount: number;
   refreshCart: () => void;
 }
 
 const CartContext = createContext<CartContextType>({
   cartCount: 0,
-  wishlistCount: 0,
   refreshCart: () => {},
 });
 
@@ -37,7 +35,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   }, [isAuthenticated]);
 
   return (
-    <CartContext.Provider value={{ cartCount, wishlistCount, refreshCart }}>
+    <CartContext.Provider value={{ cartCount, refreshCart }}>
       {children}
     </CartContext.Provider>
   );

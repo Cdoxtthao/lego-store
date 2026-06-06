@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { productApi } from '../api/productApi';
 import { ProductResponse, PagedResponse, ProductSearchRequest } from '../types';
 import { getImageUrl } from '../utils/imageHelper';
+import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import { cartApi } from '../api/cartApi';
+import { categoryApi, CategoryResponse } from '../api/categoryApi';
 
 // ========== SIDEBAR FILTER ==========
 const FilterSidebar = ({
@@ -20,28 +24,49 @@ const FilterSidebar = ({
     age: true,
     pieces: true,
   });
+  const [categories, setCategories] = useState<CategoryResponse[]>([]);
+
+  useEffect(() => {
+    categoryApi.getAll().then(setCategories).catch(() => {});
+  }, []);
 
   const toggle = (key: keyof typeof openSections) =>
     setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
 
-  const themes = [
-    'City', 'Technic', 'Star Wars', 'Ninjago', 'Harry Potter',
-    'One Piece', 'Pokemon', 'Monkie Kid', 'Disney', 'Speed Champions',
-    'Jurassic World', 'Icons', 'Super Mario',
+  const ageRanges = ['6+', '8+', '9+', '10+', '12+', '14+', '18+'];
+
+  const priceRanges = [
+    { label: 'Dưới 500.000đ', min: undefined, max: 500000 },
+    { label: '500.000đ - 1.000.000đ', min: 500000, max: 1000000 },
+    { label: '1.000.000đ - 2.000.000đ', min: 1000000, max: 2000000 },
+    { label: '2.000.000đ - 5.000.000đ', min: 2000000, max: 5000000 },
+    { label: 'Trên 5.000.000đ', min: 5000000, max: undefined },
   ];
 
-  const ageRanges = ['6+', '8+', '9+', '10+', '12+', '14+', '18+'];
+  const pieceRanges = [
+    { label: 'Dưới 200 mảnh', min: undefined, max: 200 },
+    { label: '200 - 500 mảnh', min: 200, max: 500 },
+    { label: '500 - 1000 mảnh', min: 500, max: 1000 },
+    { label: '1000 - 2000 mảnh', min: 1000, max: 2000 },
+    { label: 'Trên 2000 mảnh', min: 2000, max: undefined },
+  ];
+
+  const selectedPrice = priceRanges.find(
+    r => r.min === filters.minPrice && r.max === filters.maxPrice
+  );
+
+  const selectedPieces = pieceRanges.find(
+    r => r.min === filters.minPieces && r.max === filters.maxPieces
+  );
 
   return (
     <aside className="w-64 flex-shrink-0">
-
-      {/* Tổng số sản phẩm */}
       <p className="text-sm text-gray-500 mb-6">
         <span className="font-semibold text-gray-800">{totalCount}</span> sản phẩm
       </p>
 
       {/* Reset bộ lọc */}
-      {(filters.theme || filters.minPrice || filters.maxPrice || filters.ageRange || filters.minPieces) && (
+      {(filters.theme || filters.minPrice || filters.maxPrice || filters.ageRange || filters.minPieces || filters.maxPieces) && (
         <button
           onClick={() => onChange({ page: 1, pageSize: 12 })}
           className="w-full mb-4 text-sm text-flower-100 border border-flower-100 rounded-lg py-2 hover:bg-flower-50 transition">
@@ -49,10 +74,9 @@ const FilterSidebar = ({
         </button>
       )}
 
-      {/* Danh mục */}
+      {/* Danh mục — lấy từ DB */}
       <div className="border-b border-gray-200 pb-4 mb-4">
-        <button
-          onClick={() => toggle('category')}
+        <button onClick={() => toggle('category')}
           className="flex items-center justify-between w-full text-left font-semibold text-gray-800 mb-3">
           Danh mục
           <svg className={`h-4 w-4 transition ${openSections.category ? 'rotate-180' : ''}`}
@@ -61,20 +85,21 @@ const FilterSidebar = ({
           </svg>
         </button>
         {openSections.category && (
-          <div className="space-y-2">
-            {themes.map(theme => (
-              <label key={theme} className="flex items-center gap-2 cursor-pointer group">
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {categories.map(cat => (
+              <label key={cat.id} className="flex items-center gap-2 cursor-pointer group">
                 <input
                   type="radio"
                   name="theme"
-                  checked={filters.theme === theme}
-                  onChange={() => onChange({ ...filters, theme, page: 1 })}
+                  checked={filters.theme === cat.name}
+                  onChange={() => onChange({ ...filters, theme: cat.name, page: 1 })}
                   className="accent-flower-100"
                 />
-                <span className={`text-sm group-hover:text-flower-100 transition
-                  ${filters.theme === theme ? 'text-flower-100 font-medium' : 'text-gray-600'}`}>
-                  {theme}
+                <span className={`text-sm group-hover:text-flower-100 transition flex-1
+                  ${filters.theme === cat.name ? 'text-flower-100 font-medium' : 'text-gray-600'}`}>
+                  {cat.name}
                 </span>
+                <span className="text-xs text-gray-400">({cat.productCount})</span>
               </label>
             ))}
           </div>
@@ -83,8 +108,7 @@ const FilterSidebar = ({
 
       {/* Giá */}
       <div className="border-b border-gray-200 pb-4 mb-4">
-        <button
-          onClick={() => toggle('price')}
+        <button onClick={() => toggle('price')}
           className="flex items-center justify-between w-full text-left font-semibold text-gray-800 mb-3">
           Giá (đ)
           <svg className={`h-4 w-4 transition ${openSections.price ? 'rotate-180' : ''}`}
@@ -93,37 +117,42 @@ const FilterSidebar = ({
           </svg>
         </button>
         {openSections.price && (
-          <div className="space-y-3">
-            {[
-              { label: 'Dưới 500.000đ', min: undefined, max: 500000 },
-              { label: '500.000đ - 1.000.000đ', min: 500000, max: 1000000 },
-              { label: '1.000.000đ - 2.000.000đ', min: 1000000, max: 2000000 },
-              { label: '2.000.000đ - 5.000.000đ', min: 2000000, max: 5000000 },
-              { label: 'Trên 5.000.000đ', min: 5000000, max: undefined },
-            ].map(range => (
+          <div className="space-y-2">
+            {priceRanges.map(range => (
               <label key={range.label} className="flex items-center gap-2 cursor-pointer group">
                 <input
                   type="radio"
                   name="price"
-                  checked={filters.minPrice === range.min && filters.maxPrice === range.max}
-                  onChange={() => onChange({ ...filters, minPrice: range.min, maxPrice: range.max, page: 1 })}
+                  checked={selectedPrice?.label === range.label}
+                  onChange={() => onChange({
+                    ...filters,
+                    minPrice: range.min,
+                    maxPrice: range.max,
+                    page: 1
+                  })}
                   className="accent-flower-100"
                 />
                 <span className={`text-sm group-hover:text-flower-100 transition
-                  ${filters.minPrice === range.min && filters.maxPrice === range.max
-                    ? 'text-flower-100 font-medium' : 'text-gray-600'}`}>
+                  ${selectedPrice?.label === range.label ? 'text-flower-100 font-medium' : 'text-gray-600'}`}>
                   {range.label}
                 </span>
               </label>
             ))}
+            {/* Bỏ chọn giá */}
+            {selectedPrice && (
+              <button
+                onClick={() => onChange({ ...filters, minPrice: undefined, maxPrice: undefined, page: 1 })}
+                className="text-xs text-gray-400 hover:text-flower-100 transition mt-1">
+                ✕ Bỏ chọn
+              </button>
+            )}
           </div>
         )}
       </div>
 
       {/* Độ tuổi */}
       <div className="border-b border-gray-200 pb-4 mb-4">
-        <button
-          onClick={() => toggle('age')}
+        <button onClick={() => toggle('age')}
           className="flex items-center justify-between w-full text-left font-semibold text-gray-800 mb-3">
           Độ tuổi
           <svg className={`h-4 w-4 transition ${openSections.age ? 'rotate-180' : ''}`}
@@ -154,8 +183,7 @@ const FilterSidebar = ({
 
       {/* Số mảnh */}
       <div className="pb-4">
-        <button
-          onClick={() => toggle('pieces')}
+        <button onClick={() => toggle('pieces')}
           className="flex items-center justify-between w-full text-left font-semibold text-gray-800 mb-3">
           Số mảnh
           <svg className={`h-4 w-4 transition ${openSections.pieces ? 'rotate-180' : ''}`}
@@ -164,33 +192,35 @@ const FilterSidebar = ({
           </svg>
         </button>
         {openSections.pieces && (
-          <div className="space-y-3">
-            {[
-              { label: 'Dưới 200 mảnh', min: undefined, max: 200 },
-              { label: '200 - 500 mảnh', min: 200, max: 500 },
-              { label: '500 - 1000 mảnh', min: 500, max: 1000 },
-              { label: '1000 - 2000 mảnh', min: 1000, max: 2000 },
-              { label: 'Trên 2000 mảnh', min: 2000, max: undefined },
-            ].map(range => (
+          <div className="space-y-2">
+            {pieceRanges.map(range => (
               <label key={range.label} className="flex items-center gap-2 cursor-pointer group">
                 <input
                   type="radio"
                   name="pieces"
-                  checked={filters.minPieces === range.min}
+                  checked={selectedPieces?.label === range.label}
                   onChange={() => onChange({
                     ...filters,
                     minPieces: range.min,
+                    maxPieces: range.max,
                     page: 1
                   })}
                   className="accent-flower-100"
                 />
                 <span className={`text-sm group-hover:text-flower-100 transition
-                  ${filters.minPieces === range.min
-                    ? 'text-flower-100 font-medium' : 'text-gray-600'}`}>
+                  ${selectedPieces?.label === range.label ? 'text-flower-100 font-medium' : 'text-gray-600'}`}>
                   {range.label}
                 </span>
               </label>
             ))}
+            {/* Bỏ chọn mảnh */}
+            {selectedPieces && (
+              <button
+                onClick={() => onChange({ ...filters, minPieces: undefined, maxPieces: undefined, page: 1 })}
+                className="text-xs text-gray-400 hover:text-flower-100 transition mt-1">
+                ✕ Bỏ chọn
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -199,87 +229,129 @@ const FilterSidebar = ({
 };
 
 // ========== PRODUCT CARD CHO TRANG SẢN PHẨM ==========
-const ProductListCard = ({ product }: { product: ProductResponse }) => (
-  <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg transition group flex flex-col">
+const ProductListCard = ({ product }: { product: ProductResponse }) => {
+  const { isAuthenticated } = useAuth();
+  const { refreshCart } = useCart();
+  const navigate = useNavigate();
+  const [added, setAdded] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-    {/* Ảnh */}
-    <Link to={`/products/${product.id}`}
-      className="relative bg-flower-50 p-4 overflow-hidden"
-      style={{ aspectRatio: '1' }}>
-      {product.discountPercent && (
-        <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full z-10">
-          -{product.discountPercent}%
-        </span>
-      )}
-      {product.isFeatured && (
-        <span className="absolute top-2 right-2 bg-flower-100 text-white text-xs font-bold px-2 py-0.5 rounded-full z-10">
-          ⭐ Nổi bật
-        </span>
-      )}
-      <img
-        src={getImageUrl(product.imageUrl)}
-        alt={product.name}
-        className="w-full h-full object-contain group-hover:scale-105 transition duration-300"
-        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-      />
-    </Link>
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
 
-    {/* Thông tin */}
-    <div className="p-4 flex flex-col flex-1">
-      <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
-        {product.categoryName} · {product.setNumber}
-      </p>
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await cartApi.addToCart(product.id, 1);
+      refreshCart();
+      setAdded(true);
+      setTimeout(() => setAdded(false), 2000);
+    } catch {
+      console.error('Lỗi thêm vào giỏ');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg transition group flex flex-col">
+
+      {/* Ảnh */}
       <Link to={`/products/${product.id}`}
-        className="text-sm font-semibold text-gray-800 hover:text-flower-100 transition line-clamp-2 flex-1 mb-2">
-        {product.name}
-      </Link>
-
-      {/* Rating */}
-      {product.reviewCount > 0 && (
-        <div className="flex items-center gap-1 mb-2">
-          {[...Array(5)].map((_, i) => (
-            <svg key={i} className={`h-3 w-3 ${i < Math.round(product.averageRating) ? 'text-yellow-400' : 'text-gray-200'}`}
-              fill="currentColor" viewBox="0 0 20 20">
-              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-            </svg>
-          ))}
-          <span className="text-xs text-gray-400">({product.reviewCount})</span>
-        </div>
-      )}
-
-      {/* Giá */}
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-flower-100 font-bold">
-          {product.price.toLocaleString('vi-VN')}đ
-        </span>
-        {product.oldPrice && (
-          <span className="text-gray-400 text-xs line-through">
-            {product.oldPrice.toLocaleString('vi-VN')}đ
+        className="relative bg-flower-50 p-4 overflow-hidden"
+        style={{ aspectRatio: '1' }}>
+        {product.discountPercent && (
+          <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full z-10">
+            -{product.discountPercent}%
           </span>
         )}
-      </div>
+        {product.isFeatured && (
+          <span className="absolute top-2 right-2 bg-flower-100 text-white text-xs font-bold px-2 py-0.5 rounded-full z-10">
+            ⭐ Nổi bật
+          </span>
+        )}
+        <img
+          src={getImageUrl(product.imageUrl)}
+          alt={product.name}
+          className="w-full h-full object-contain group-hover:scale-105 transition duration-300"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      </Link>
 
-      {/* Số mảnh */}
-      {product.pieceCount && (
-        <p className="text-xs text-gray-400 mb-3">{product.pieceCount} mảnh</p>
-      )}
+      {/* Thông tin */}
+      <div className="p-4 flex flex-col flex-1">
+        <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
+          {product.categoryName} · {product.setNumber}
+        </p>
+        <Link to={`/products/${product.id}`}
+          className="text-sm font-semibold text-gray-800 hover:text-flower-100 transition line-clamp-2 flex-1 mb-2">
+          {product.name}
+        </Link>
 
-      {/* Buttons */}
-      <div className="flex gap-2 mt-auto">
-        <button className="flex-1 bg-flower-100 text-white text-sm font-semibold py-2 rounded-lg hover:bg-flower-150 transition">
-          Thêm vào giỏ
-        </button>
-        <button className="w-9 h-9 border border-gray-200 rounded-lg flex items-center justify-center text-gray-400 hover:text-flower-100 hover:border-flower-100 transition">
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
-        </button>
+        {/* Rating */}
+        {product.reviewCount > 0 && (
+          <div className="flex items-center gap-1 mb-2">
+            {[...Array(5)].map((_, i) => (
+              <svg key={i} className={`h-3 w-3 ${i < Math.round(product.averageRating) ? 'text-yellow-400' : 'text-gray-200'}`}
+                fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+            ))}
+            <span className="text-xs text-gray-400">({product.reviewCount})</span>
+          </div>
+        )}
+
+        {/* Giá */}
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-flower-100 font-bold">
+            {product.price.toLocaleString('vi-VN')}đ
+          </span>
+          {product.oldPrice && (
+            <span className="text-gray-400 text-xs line-through">
+              {product.oldPrice.toLocaleString('vi-VN')}đ
+            </span>
+          )}
+        </div>
+
+        {/* Số mảnh */}
+        {product.pieceCount && (
+          <p className="text-xs text-gray-400 mb-3">{product.pieceCount} mảnh</p>
+        )}
+
+        {/* Buttons */}
+        <div className="flex gap-2 mt-auto">
+          <button
+            onClick={handleAddToCart}
+            disabled={loading || product.stockQuantity === 0}
+            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition
+             ${product.stockQuantity === 0
+                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : added
+                ? 'bg-green-500 text-white'
+                : 'bg-flower-100 text-white hover:bg-flower-150'}
+              disabled:opacity-50`}>
+            {product.stockQuantity === 0
+              ? 'Hết hàng'
+              : loading ? '...'
+              : added ? '✓ Đã thêm'
+              : 'Thêm vào giỏ'}
+          </button>
+          <button className="w-9 h-9 border border-gray-200 rounded-lg flex items-center justify-center text-gray-400 hover:text-flower-100 hover:border-flower-100 transition">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
-
+  );
+};
 // ========== PHÂN TRANG ==========
 const Pagination = ({
   page,
@@ -363,21 +435,14 @@ const ProductsPage = () => {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filters, setFilters] = useState<ProductSearchRequest>({
-    page: 1,
+    keyword: searchParams.get('keyword') || undefined,
+    theme: searchParams.get('theme') || undefined,
+    ageRange: searchParams.get('ageRange') || undefined,
+    sortBy: searchParams.get('sortBy') || undefined,
+    isFeatured: searchParams.get('isFeatured') === 'true' ? true : undefined,
+    page: parseInt(searchParams.get('page') || '1'),
     pageSize: 12,
   });
-
-  useEffect(() => {
-    setFilters({
-      keyword: searchParams.get('keyword') || undefined,
-      theme: searchParams.get('theme') || undefined,
-      ageRange: searchParams.get('ageRange') || undefined,
-      sortBy: searchParams.get('sortBy') || undefined,
-      isFeatured: searchParams.get('isFeatured') === 'true' ? true : undefined,
-      page: parseInt(searchParams.get('page') || '1'),
-      pageSize: 12,
-    });
-  }, [searchParams]);
 
   useEffect(() => {
     const fetch = async () => {
@@ -402,6 +467,7 @@ const ProductsPage = () => {
     if (newFilters.sortBy) params.sortBy = newFilters.sortBy;
     if (newFilters.isFeatured) params.isFeatured = 'true';
     if (newFilters.page && newFilters.page > 1) params.page = String(newFilters.page);
+    setFilters({ ...newFilters, pageSize: 12 });
     setSearchParams(params);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -504,7 +570,7 @@ const ProductsPage = () => {
             )}
 
             {/* Phân trang */}
-            {result && (
+            {result && result.totalPages > 1 && (
               <Pagination
                 page={result.page}
                 totalPages={result.totalPages}

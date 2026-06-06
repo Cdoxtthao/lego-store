@@ -113,9 +113,17 @@ namespace BaseCore.Services.Implementations
             if (product == null) return null;
 
             if (request.Name != null) product.Name = request.Name;
+            if (request.Description != null) product.Description = request.Description;
             if (request.Price.HasValue) product.Price = request.Price.Value;
+            if (request.OldPrice.HasValue) product.OldPrice = request.OldPrice.Value;
             if (request.StockQuantity.HasValue) product.StockQuantity = request.StockQuantity.Value;
+            if (request.ImageUrl != null) product.ImageUrl = request.ImageUrl;
+            if (request.Theme != null) product.Theme = request.Theme;
+            if (request.AgeRange != null) product.AgeRange = request.AgeRange;
+            if (request.PieceCount.HasValue) product.PieceCount = request.PieceCount.Value;
+            if (request.SetNumber != null) product.SetNumber = request.SetNumber;
             if (request.IsFeatured.HasValue) product.IsFeatured = request.IsFeatured.Value;
+            product.UpdatedAt = DateTime.UtcNow;
 
             await _productRepository.UpdateAsync(product);
             return MapToResponse(product);

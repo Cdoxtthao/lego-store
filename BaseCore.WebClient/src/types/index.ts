@@ -4,6 +4,7 @@ export interface AuthResponse {
   email: string;
   role: string;
   expiresAt: string;
+  avatarUrl?: string;
 }
 
 export interface ProductResponse {
@@ -69,6 +70,7 @@ export interface ProductSearchRequest {
   page?: number;
   pageSize?: number;
   minPieces?: number;
+  maxPieces?: number;
 }
 
 export interface CreateProductRequest {
@@ -84,6 +86,7 @@ export interface CreateProductRequest {
   pieceCount?: number;
   setNumber?: string;
   isFeatured?: boolean;
+  images?: string[];
 }
 
 export interface UpdateProductRequest {
@@ -100,6 +103,7 @@ export interface UpdateProductRequest {
   setNumber?: string;
   isFeatured?: boolean;
   isActive?: boolean;
+  images?: string[];
 }
 
 export interface ProductImageResponse {

@@ -1,7 +1,9 @@
 ﻿using BaseCore.DTO.Request;
+using BaseCore.Entities;
 using BaseCore.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace BaseCore.APIService.Controllers
 {
@@ -10,15 +12,33 @@ namespace BaseCore.APIService.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly IProductService _service;
-        public ProductsController(IProductService service)
+        private readonly AppDbContext _context;
+        public ProductsController(IProductService service, AppDbContext context)
         {
             _service = service;
+            _context = context;
         }
+
         [AllowAnonymous]
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] ProductSearchRequest request)
         {
             var result = await _service.GetAllAsync(request);
+            var now = DateTime.UtcNow;
+            var activePromotion = await _context.Promotions
+                .Where(p => p.IsActive && p.StartDate <= now && p.EndDate >= now)
+                .OrderByDescending(p => p.DiscountPercent)
+                .FirstOrDefaultAsync();
+            if (activePromotion != null)
+            {
+                foreach (var item in result.Items)
+                {
+                    if (!item.OldPrice.HasValue || item.OldPrice == 0)
+                        item.OldPrice = item.Price;
+                    item.Price = Math.Round(item.OldPrice.Value * (1 - activePromotion.DiscountPercent / 100m), 0);
+                    item.DiscountPercent = activePromotion.DiscountPercent;
+                }
+            }
             return Ok(result);
         }
 
@@ -36,6 +56,19 @@ namespace BaseCore.APIService.Controllers
         {
             var result = await _service.GetByIdAsync(id);
             if (result == null) return NotFound();
+
+            var now = DateTime.UtcNow;
+            var activePromotion = await _context.Promotions
+                .Where(p => p.IsActive && p.StartDate <= now && p.EndDate >= now)
+                .OrderByDescending(p => p.DiscountPercent)
+                .FirstOrDefaultAsync();
+            if (activePromotion != null)
+            {
+                if (!result.OldPrice.HasValue || result.OldPrice == 0)
+                    result.OldPrice = result.Price;
+                result.Price = Math.Round(result.OldPrice.Value * (1 - activePromotion.DiscountPercent / 100m), 0);
+                result.DiscountPercent = activePromotion.DiscountPercent;
+            }
             return Ok(result);
         }
 
@@ -45,16 +78,55 @@ namespace BaseCore.APIService.Controllers
         public async Task<IActionResult> Create([FromBody] CreateProductRequest request)
         {
             var result = await _service.CreateAsync(request);
+
+            // Lưu ảnh bổ sung nếu có
+            if (request.Images?.Any() == true)
+            {
+                foreach (var (url, i) in request.Images.Select((url, i) => (url, i)))
+                {
+                    _context.ProductImages.Add(new ProductImage
+                    {
+                        ProductId = result.Id,
+                        ImageUrl = url,
+                        IsMain = i == 0,
+                        SortOrder = i,
+                    });
+                }
+                await _context.SaveChangesAsync();
+            }
+
             return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
         }
 
         //PUT
-        [Authorize(Roles = "Admin,Seller")]
+        [Authorize(Roles = "Admin,Seller,Supplier")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateProductRequest request)
         {
             var result = await _service.UpdateAsync(id, request);
-            if (result == null) return NotFound();
+
+            // Cập nhật ảnh bổ sung
+            if (request.Images != null)
+            {
+                // Xóa ảnh cũ
+                var oldImages = _context.ProductImages
+                    .Where(pi => pi.ProductId == id);
+                _context.ProductImages.RemoveRange(oldImages);
+
+                // Thêm ảnh mới
+                foreach (var (url, i) in request.Images.Select((url, i) => (url, i)))
+                {
+                    _context.ProductImages.Add(new ProductImage
+                    {
+                        ProductId = id,
+                        ImageUrl = url,
+                        IsMain = i == 0,
+                        SortOrder = i,
+                    });
+                }
+                await _context.SaveChangesAsync();
+            }
+
             return Ok(result);
         }
 

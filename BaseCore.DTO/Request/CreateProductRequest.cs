@@ -14,5 +14,6 @@
         public int? PieceCount { get; set; }
         public string? SetNumber { get; set; }
         public bool IsFeatured { get; set; } = false;
+        public List<string>? Images { get; set; }
     }
 }

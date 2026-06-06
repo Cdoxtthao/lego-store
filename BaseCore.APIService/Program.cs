@@ -13,8 +13,17 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ===================== DATABASE =====================
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration
-        .GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions => {
+            sqlOptions.CommandTimeout(120);
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorNumbersToAdd: null
+            );
+        }
+));
 
 // ===================== REPOSITORY =====================
 // Đăng ký từng cặp Interface → Implementation
@@ -22,9 +31,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ICartRepository, CartRepository>();
-//builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
-//builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 
 // ===================== SERVICES =====================
 builder.Services.AddScoped<IProductService, ProductService>();
@@ -78,14 +87,18 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins("http://localhost:3000")
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddSignalR();
 
+Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;
+Microsoft.IdentityModel.Logging.IdentityModelEventSource.LogCompleteSecurityArtifact = true;
 var app = builder.Build();
 
 // ===================== MIDDLEWARE =====================
@@ -100,6 +113,7 @@ app.UseStaticFiles();
 app.UseCors("AllowReact"); 
 app.UseHttpsRedirection();
 app.UseAuthentication();       
-app.UseAuthorization();         
+app.UseAuthorization();
+app.MapHub<BaseCore.APIService.Hubs.ChatHub>("/hubs/chat");
 app.MapControllers();
 app.Run();

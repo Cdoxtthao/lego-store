@@ -19,12 +19,19 @@
         public int ReviewCount { get; set; }
         public DateTime CreatedAt { get; set; }
         public int SoldCount { get; set; }
+        public List<ProductImageResponse> Images { get; set; } = new();
+
 
         // Tính % giảm giá để hiện badge "Giảm 20%"
-        public int? DiscountPercent => OldPrice.HasValue && OldPrice > 0
-            ? (int)((1 - Price / OldPrice.Value) * 100)
-            : null;
-        public List<ProductImageResponse> Images { get; set; } = new();
+        private int? _discountPercent;
+        public int? DiscountPercent
+        {
+            get => _discountPercent ?? (OldPrice.HasValue && OldPrice > 0
+                ? (int)((1 - Price / OldPrice.Value) * 100)
+                : null);
+            set => _discountPercent = value;
+        }
+
     }
     public class ProductImageResponse
     {

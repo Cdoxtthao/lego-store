@@ -7,6 +7,9 @@ import { ProductResponse } from '../types';
 import { categories } from '../data/categories';
 import { CartResponse } from '../types';
 import { cartApi } from '../api/cartApi';
+import { getImageUrl } from '../utils/imageHelper';
+import { useWishlist } from '../context/WishlistContext';
+import * as signalR from '@microsoft/signalr';
 
 // =================== THANH THÔNG BÁO ==========================
 const announcements = [
@@ -115,35 +118,87 @@ const AnnouncementBar = () => {
 };
 
 // ================ CHATBOX ==========================
+interface ChatMessage {
+  isFromUser: boolean;
+  content: string;
+  createdAt?: string;
+}
+
 const ChatBox = ({ onClose }: { onClose: () => void }) => {
   const { isAuthenticated } = useAuth();
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([
-    { from: 'seller', text: 'Xin chào! Tôi có thể giúp gì cho bạn? 😊' }
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    { isFromUser: false, content: 'Xin chào! Tôi có thể giúp gì cho bạn? 😊' }
   ]);
+  const [connected, setConnected] = useState(false);
+  const connectionRef = useRef<signalR.HubConnection | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const handleSend = () => {
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const token = localStorage.getItem('token');
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl('https://localhost:7175/hubs/chat', {
+        accessTokenFactory: () => token || '',
+      })
+      .withAutomaticReconnect()
+      .build();
+
+    connection.on('ReceiveMessage', (msg: any) => {
+      setMessages(prev => [...prev, msg]);
+    });
+
+    connection.start()
+      .then(() => setConnected(true))
+      .catch(err => console.error('SignalR error:', err));
+
+    connectionRef.current = connection;
+
+    // Load lịch sử
+    fetch('https://localhost:7175/api/Messages/my', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setMessages(data);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      connection.stop();
+    };
+  }, [isAuthenticated]);
+
+  const handleSend = async () => {
     if (!message.trim()) return;
 
     if (!isAuthenticated) {
       setMessages(prev => [...prev,
-        { from: 'user', text: message },
-        { from: 'seller', text: '⚠️ Vui lòng đăng nhập để gửi tin nhắn!'}
+        { isFromUser: true, content: message },
+        { isFromUser: false, content: '⚠️ Vui lòng đăng nhập để gửi tin nhắn!' }
       ]);
       setMessage('');
       return;
     }
-    
-    setMessages(prev => [...prev, { from: 'user', text: message }]);
-    setMessage('');
-    // Giả lập seller reply
-    setTimeout(() => {
+
+    try {
+      await connectionRef.current?.invoke('SendMessage', message);
+      setMessage('');
+    } catch {
       setMessages(prev => [...prev, {
-        from: 'seller',
-        text: 'Cảm ơn bạn đã liên hệ! Chúng tôi sẽ phản hồi sớm nhất có thể. 🙏'
+        isFromUser: false,
+        content: 'Không thể gửi tin nhắn. Vui lòng thử lại!'
       }]);
-    }, 1000);
+    }
   };
+
 
   return (
     <div className="fixed bottom-20 right-4 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 flex flex-col overflow-hidden"
@@ -154,15 +209,22 @@ const ChatBox = ({ onClose }: { onClose: () => void }) => {
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           </div>
           <div>
             <p className="font-semibold text-sm">Tư vấn viên</p>
-            <p className="text-xs text-white/70">Thường trả lời trong vài phút</p>
+            <div className="flex items-center gap-1">
+              <div className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-300' : 'bg-gray-300'}`} />
+              <p className="text-xs text-white/70">
+                {connected ? 'Đang online' : 'Đang kết nối...'}
+              </p>
+            </div>
           </div>
         </div>
-        <button onClick={onClose} className="hover:bg-white/20 p-1 rounded-full transition">
+        <button onClick={onClose}
+          className="hover:bg-white/20 p-1 rounded-full transition">
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -172,21 +234,16 @@ const ChatBox = ({ onClose }: { onClose: () => void }) => {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 bg-gray-50">
         {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.from === 'user' ? 'justify-end' : 'justify-start'}`}>
+          <div key={i} className={`flex ${msg.isFromUser ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm
-              ${msg.from === 'user'
+              ${msg.isFromUser
                 ? 'bg-flower-100 text-white rounded-br-sm'
                 : 'bg-white text-gray-700 shadow-sm rounded-bl-sm'}`}>
-              {msg.text}
-
-              {msg.text.includes('đăng nhập') && msg.from === 'seller' && (
-                <Link to="/login" className="block mt-1 text-flower-100 underline text-xs">
-                  Đăng nhập ngay →
-                </Link>
-              )}
+              {msg.content}
             </div>
           </div>
         ))}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
@@ -202,10 +259,10 @@ const ChatBox = ({ onClose }: { onClose: () => void }) => {
         <button
           onClick={handleSend}
           disabled={!message.trim()}
-          className="w-9 h-9 bg-flower-100 text-white rounded-full flex items-center justify-center hover:bg-flower-150 transition disabled:opacity-40"
-        >
+          className="w-9 h-9 bg-flower-100 text-white rounded-full flex items-center justify-center hover:bg-flower-150 transition disabled:opacity-40">
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
           </svg>
         </button>
       </div>
@@ -331,17 +388,17 @@ const ProductDropdown = ({ onClose }: { onClose: () => void }) => {
 // ======================= NAVBAR ====================================
 const Navbar = () => {
   const { isAuthenticated, user, logout, isAdmin, isSeller, isSupplier } = useAuth();
-  const { cartCount, wishlistCount } = useCart();
+  const { cartCount, refreshCart } = useCart();
   const [searchKeyword, setSearchKeyword] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showProductMenu, setShowProductMenu] = useState(false);
-  const productMenuRef = useRef<HTMLLIElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const [showCart, setShowCart] = useState(false);
   const [cart, setCart] = useState<CartResponse | null>(null);
   const [cartLoading, setCartLoading] = useState(false);
+  const { wishlistCount, refreshWishlist } = useWishlist();
 
   const fetchCart = async () => {
     if (!isAuthenticated) return;
@@ -466,8 +523,21 @@ const Navbar = () => {
                 <button
                   onClick={() => setShowDropdown(!showDropdown)}
                   className="p-1 rounded-full hover:bg-flower-50 transition flex items-center gap-1">
-                  <div className="w-8 h-8 rounded-full bg-flower-100 flex items-center justify-center text-white font-semibold text-sm">
-                    {user?.fullName?.charAt(0).toUpperCase()}
+                  <div className="w-8 h-8 rounded-full bg-flower-100 flex items-center justify-center">
+                    {user?.avatarUrl ? (
+                      <img
+                        src={user.avatarUrl.startsWith('http')
+                          ? user.avatarUrl
+                          : `https://localhost:7175${user.avatarUrl}`}
+                        alt={user.fullName}
+                        className="w-full h-full rounded-full object-cover"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    ) : (
+                      <span className="text-white font-semibold text-sm">
+                        {user?.fullName?.charAt(0).toUpperCase()}
+                      </span>
+                    )}
                   </div>
                 </button>
 

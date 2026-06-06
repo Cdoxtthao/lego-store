@@ -10,10 +10,14 @@ const axiosClient = axios.create({
 });
 
 axiosClient.interceptors.request.use((config) => {
-  // Đọc token mỗi request — không cache
   const token = localStorage.getItem('token');
+  console.log('Token từ localStorage:', token);
+  console.log('Token length:', token?.length);
+  console.log('Token parts:', token?.split('.').length);
+  
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+    console.log('Authorization header:', config.headers.Authorization?.toString().substring(0, 80));
   }
   return config;
 });

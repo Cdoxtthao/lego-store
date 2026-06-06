@@ -7,8 +7,14 @@ namespace BaseCore.APIService.Controllers
     [Route("api/[controller]")]
     public class ImageController : ControllerBase
     {
+        private readonly IWebHostEnvironment _env;
 
-        [Authorize(Roles = "Admin,Seller,Supplier")]
+        public ImageController(IWebHostEnvironment env)
+        {
+            _env = env;
+        }
+
+        [Authorize]
         [HttpPost("upload")]
         public async Task<IActionResult> Upload(IFormFile file)
         {
@@ -16,27 +22,31 @@ namespace BaseCore.APIService.Controllers
                 return BadRequest(new { message = "Không có file" });
 
             // Kiểm tra định dạng
-            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
-            var extension = Path.GetExtension(file.FileName).ToLower();
-            if (!allowedExtensions.Contains(extension))
-                return BadRequest(new { message = "Chỉ chấp nhận jpg, png, webp" });
+            var allowedTypes = new[] { "image/jpeg", "image/png", "image/webp", "image/gif" };
+            if (!allowedTypes.Contains(file.ContentType.ToLower()))
+                return BadRequest(new { message = "Chỉ chấp nhận ảnh JPG, PNG, WebP" });
+
+            // Kiểm tra dung lượng (5MB)
+            if (file.Length > 5 * 1024 * 1024)
+                return BadRequest(new { message = "Ảnh không được vượt quá 5MB" });
 
             // Tạo tên file unique
-            var fileName = $"{Guid.NewGuid()}{extension}";
-            var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "products");
+            var ext = Path.GetExtension(file.FileName);
+            var fileName = $"{Guid.NewGuid()}{ext}";
+            var uploadPath = Path.Combine(_env.WebRootPath, "images", "products");
 
-            // Tạo folder nếu chưa có
-            Directory.CreateDirectory(folderPath);
+            // Tạo thư mục nếu chưa có
+            Directory.CreateDirectory(uploadPath);
 
-            var filePath = Path.Combine(folderPath, fileName);
+            var filePath = Path.Combine(uploadPath, fileName);
 
             using (var stream = new FileStream(filePath, FileMode.Create))
             {
                 await file.CopyToAsync(stream);
             }
 
-            var imageUrl = $"/images/products/{fileName}";
-            return Ok(new { imageUrl });
+            var url = $"/images/products/{fileName}";
+            return Ok(new { url, message = "Upload thành công" });
         }
     }
 }

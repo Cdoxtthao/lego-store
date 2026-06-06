@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { productApi } from '../api/productApi';
 import { ProductResponse } from '../types';
 import ProductCard from '../components/ProductCard';
 import { getImageUrl } from '../utils/imageHelper';
+import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
+import { cartApi } from '../api/cartApi';
+import { wishlistApi } from '../api/wishlistApi';
 
 // ========== HERO BANNER ==========
 const heroBanners = [
@@ -199,12 +204,55 @@ const ProductSection = ({
   bannerBg?: string;
 }) => {
   const [startIndex, setStartIndex] = useState(0);
+  const [addedCartId, setAddedCartId] = useState<number | null>(null);
+  const [wishlistedIds, setWishlistedIds] = useState<Set<number>>(new Set());
   const visibleCount = 3; // hiện 3 sản phẩm cùng lúc
+
+  const { isAuthenticated } = useAuth();
+  const { refreshCart } = useCart();
+  const { refreshWishlist } = useWishlist();
+  const navigate = useNavigate();
 
   const goPrev = () => setStartIndex(prev => Math.max(0, prev - 1));
   const goNext = () => setStartIndex(prev =>
     Math.min(products.length - visibleCount, prev + 1)
   );
+
+  const handleAddToCart = async (e: React.MouseEvent, productId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) { navigate('/login'); return; }
+    try {
+      await cartApi.addToCart(productId, 1);
+      refreshCart();
+      setAddedCartId(productId);
+      setTimeout(() => setAddedCartId(null), 2000);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleToggleWishlist = async (e: React.MouseEvent, productId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) { navigate('/login'); return; }
+    try {
+      if (wishlistedIds.has(productId)) {
+        await wishlistApi.remove(productId);
+        setWishlistedIds(prev => {
+          const s = new Set(prev);
+          s.delete(productId);
+          return s;
+        });
+      } else {
+        await wishlistApi.add(productId);
+        setWishlistedIds(prev => new Set(prev).add(productId));
+      }
+      refreshWishlist();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const visible = products.slice(startIndex, startIndex + visibleCount);
 
@@ -298,11 +346,31 @@ const ProductSection = ({
 
                 {/* Nút thêm vào giỏ + yêu thích */}
                 <div className="flex gap-2 mt-3">
-                  <button className="flex-1 bg-flower-100 text-white text-sm font-semibold py-2 rounded-lg hover:bg-flower-150 transition">
-                    Thêm Vào Giỏ
+                  <button
+                    onClick={(e) => handleAddToCart(e, p.id)}
+                    disabled={p.stockQuantity === 0}
+                    className={`flex-1 text-white text-sm font-semibold py-2 rounded-lg transition
+                      ${p.stockQuantity === 0
+                        ? 'bg-gray-300 cursor-not-allowed'
+                        : addedCartId === p.id
+                        ? 'bg-green-500'
+                        : 'bg-flower-100 hover:bg-flower-150'}`}>
+                    {p.stockQuantity === 0
+                      ? 'Hết hàng'
+                      : addedCartId === p.id
+                      ? '✓ Đã thêm'
+                      : 'Thêm Vào Giỏ'}
                   </button>
-                  <button className="w-9 h-9 border border-gray-200 rounded-lg flex items-center justify-center text-gray-400 hover:text-flower-100 hover:border-flower-100 transition">
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+
+                  <button
+                    onClick={(e) => handleToggleWishlist(e, p.id)}
+                    className={`w-9 h-9 border rounded-lg flex items-center justify-center transition
+                      ${wishlistedIds.has(p.id)
+                        ? 'bg-red-50 border-red-200 text-red-500'
+                        : 'border-gray-200 text-gray-400 hover:border-red-200 hover:text-red-500'}`}>
+                    <svg className="h-4 w-4"
+                      fill={wishlistedIds.has(p.id) ? 'currentColor' : 'none'}
+                      viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                         d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                     </svg>

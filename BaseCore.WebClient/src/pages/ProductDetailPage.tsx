@@ -8,6 +8,8 @@ import { ReviewResponse } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { cartApi } from '../api/cartApi';
 import { useCart } from '../context/CartContext'; 
+import WishlistButton from '../components/WishlistButton';
+import axiosClient from '../api/axiosClient';
 
 // ========== IMAGE GALLERY ==========
 const ImageGallery = ({ product }: { product: ProductResponse }) => {
@@ -141,6 +143,7 @@ const ProductDetailPage = () => {
   const [relatedTotal, setRelatedTotal] = useState(0);
   const relatedPageSize = 8;
   const { refreshCart } = useCart();
+  const [canReview, setCanReview] = useState(false);
 
   const reviewRef = useRef<HTMLDivElement>(null);
   const scrollToReview = () => {
@@ -150,33 +153,28 @@ const ProductDetailPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-  const fetchAll = async () => {
-    setLoading(true);
-    try {
-      // Bước 1: lấy product trước
-      const productRes = await productApi.getById(Number(id));
-      setProduct(productRes);
-
-      // Bước 2: lấy reviews và related cùng lúc
-      const [reviewRes, relatedRes] = await Promise.all([
-        reviewApi.getByProduct(Number(id)),
-        productApi.getAll({
-          theme: productRes.theme || undefined,
-          pageSize: relatedPageSize,
-          page: 1,
-        }),
-      ]);
-      setReviews(reviewRes);
-      setRelatedProducts(relatedRes.items.filter(p => p.id !== Number(id)));
-      setRelatedTotal(relatedRes.totalCount);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-  fetchAll();
-}, [id]);
+    const fetchAll = async () => {
+      setLoading(true);
+      try {
+        const [productRes, reviewRes, canReviewRes] = await Promise.all([
+          productApi.getById(Number(id)),
+          reviewApi.getByProduct(Number(id)),
+          isAuthenticated
+            ? axiosClient.get(`/Reviews/can-review/${id}`)
+                .catch(() => ({ data: { canReview: false } }))
+            : Promise.resolve({ data: { canReview: false } }),
+        ]);
+        setProduct(productRes);
+        setReviews(reviewRes);
+        setCanReview(canReviewRes.data.canReview);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAll();
+  }, [id, isAuthenticated]); 
 
   useEffect(() => {
     if (!product) return;
@@ -531,7 +529,13 @@ const ProductDetailPage = () => {
               )}
             </div>
 
-            {/* Số lượng */}
+            {/* Số lượng — ẩn khi hết hàng */}
+            {product.stockQuantity === 0 ? (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-center">
+                <p className="text-red-500 font-semibold">😢 Sản phẩm tạm hết hàng</p>
+                <p className="text-xs text-red-400 mt-1">Vui lòng quay lại sau</p>
+              </div>
+            ) : (
               <div className="mb-4">
                 <div className="flex items-center gap-4">
                   <span className="text-sm font-medium text-gray-700">Số lượng:</span>
@@ -580,25 +584,27 @@ const ProductDetailPage = () => {
                   </p>
                 )}
               </div>
+            )}
 
             {/* Buttons */}
             <div className="flex gap-3 mb-6">
               <button
                 onClick={handleAddToCart}
-                disabled={product.stockQuantity === 0}
+                disabled={product.stockQuantity === 0 || addedToCart}
                 className={`flex-1 py-3 rounded-xl font-semibold text-white transition
-                  ${addedToCart
-                    ? 'bg-green-500'
-                    : 'bg-flower-100 hover:bg-flower-150'}
-                  disabled:opacity-50 disabled:cursor-not-allowed`}>
-                {addedToCart ? '✓ Đã thêm vào giỏ!' : 'Thêm vào giỏ hàng'}
+                ${product.stockQuantity === 0
+                  ? 'bg-gray-300 cursor-not-allowed'
+                  : addedToCart
+                  ? 'bg-green-500'
+                  : 'bg-flower-100 hover:bg-flower-150'}
+                disabled:opacity-50 disabled:cursor-not-allowed`}>
+              {product.stockQuantity === 0
+                ? 'Hết hàng'
+                : addedToCart
+                ? '✓ Đã thêm vào giỏ!'
+                : 'Thêm vào giỏ hàng'}
               </button>
-              <button className="w-12 h-12 border-2 border-gray-200 rounded-xl flex items-center justify-center text-gray-400 hover:border-flower-100 hover:text-flower-100 transition">
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-              </button>
+              <WishlistButton productId={product.id} size="md" />
             </div>
 
             {/* Cam kết */}
@@ -697,74 +703,6 @@ const ProductDetailPage = () => {
                 {product.stockQuantity > 0 ? `Còn ${product.stockQuantity} sp` : 'Hết hàng'}
               </p>
             </div>
-          </div>
-
-          {/* Form viết đánh giá */}
-          <div className="mb-10">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">Viết đánh giá của bạn</h3>
-
-            {!isAuthenticated ? (
-              <div className="bg-flower-50 rounded-xl p-6 text-center">
-                <p className="text-gray-600 mb-3">Vui lòng đăng nhập để đánh giá sản phẩm</p>
-                <Link to="/login"
-                  className="inline-block px-6 py-2 bg-flower-100 text-white rounded-full text-sm hover:bg-flower-150 transition">
-                  Đăng nhập ngay
-                </Link>
-              </div>
-            ) : reviewSuccess ? (
-              <div className="bg-green-50 rounded-xl p-6 text-center text-green-600">
-                ✅ Cảm ơn bạn đã đánh giá sản phẩm!
-              </div>
-            ) : (
-              <div className="bg-white border border-gray-100 rounded-xl p-6 shadow-sm">
-
-                {/* Chọn sao */}
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-sm text-gray-600">Đánh giá của bạn:</span>
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5].map(star => (
-                      <button
-                        key={star}
-                        onMouseEnter={() => setHoverRating(star)}
-                        onMouseLeave={() => setHoverRating(0)}
-                        onClick={() => { setMyRating(star); setReviewError(''); }}
-                        className="transition">
-                        <svg
-                          className={`h-8 w-8 transition ${star <= (hoverRating || myRating) ? 'text-yellow-400' : 'text-gray-200'}`}
-                          fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                      </button>
-                    ))}
-                  </div>
-                  {myRating > 0 && (
-                    <span className="text-sm text-yellow-500 font-medium">
-                      {['', 'Rất tệ', 'Tệ', 'Bình thường', 'Tốt', 'Xuất sắc'][myRating]}
-                    </span>
-                  )}
-                </div>
-
-                {/* Nhập bình luận */}
-                <textarea
-                  value={myComment}
-                  onChange={(e) => setMyComment(e.target.value)}
-                  placeholder="Chia sẻ cảm nhận của bạn về sản phẩm..."
-                  rows={4}
-                  className="w-full border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-flower-100 resize-none"
-                />
-
-                {reviewError && (
-                  <p className="text-red-500 text-sm mt-2">{reviewError}</p>
-                )}
-
-                <button
-                  onClick={handleSubmitReview}
-                  disabled={submitting || myRating === 0}
-                  className="mt-3 px-8 py-2.5 bg-flower-100 text-white font-semibold rounded-full hover:bg-flower-150 transition disabled:opacity-40">
-                  {submitting ? 'Đang gửi...' : 'Gửi đánh giá'}
-                </button>
-              </div>
-            )}
           </div>
 
   {/* Danh sách đánh giá */}

@@ -13,13 +13,19 @@ namespace BaseCore.Repository.Implementations
             _context = context;
         }
 
-        public async Task<IEnumerable<User>> GetAllAsync(int page, int pageSize)
-            => await _context.Users
-                .Include(u => u.Role)
-                .Where(u => u.IsActive)
+        public async Task<IEnumerable<User>> GetAllAsync(int page, int pageSize, string? keyword = null)
+        {
+            var query = _context.Users.Include(u => u.Role).AsQueryable();
+            if (!string.IsNullOrEmpty(keyword))
+                query = query.Where(u =>
+                    u.FullName.Contains(keyword) ||
+                    u.Email.Contains(keyword));
+            return await query
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
+                .AsNoTracking()
                 .ToListAsync();
+        }
 
         public async Task<User?> GetByIdAsync(int id)
             => await _context.Users
@@ -29,6 +35,7 @@ namespace BaseCore.Repository.Implementations
         public async Task<User?> GetByEmailAsync(string email)
             => await _context.Users
                 .Include(u => u.Role)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Email == email && u.IsActive);
 
         public async Task<User> AddAsync(User user)
@@ -47,7 +54,14 @@ namespace BaseCore.Repository.Implementations
         public async Task<bool> EmailExistsAsync(string email)
             => await _context.Users.AnyAsync(u => u.Email == email);
 
-        public async Task<int> GetTotalCountAsync()
-            => await _context.Users.CountAsync(u => u.IsActive);
+        public async Task<int> GetTotalCountAsync(string? keyword = null)
+        {
+            var query = _context.Users.AsQueryable();
+            if (!string.IsNullOrEmpty(keyword))
+                query = query.Where(u =>
+                    u.FullName.Contains(keyword) ||
+                    u.Email.Contains(keyword));
+            return await query.CountAsync();
+        }
     }
 }

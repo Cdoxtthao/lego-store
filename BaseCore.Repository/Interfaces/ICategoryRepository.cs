@@ -9,5 +9,6 @@ namespace BaseCore.Repository.Interfaces
         Task<Category> AddAsync(Category category);
         Task UpdateAsync(Category category);
         Task DeleteAsync(int id);
+        Task<bool> ExistsAsync(string name);
     }
 }

@@ -8,7 +8,8 @@
         public string? AgeRange { get; set; }       // lọc theo độ tuổi
         public decimal? MinPrice { get; set; }      // giá từ
         public decimal? MaxPrice { get; set; }      // giá đến
-        public int? MinPieces { get; set; }         // số mảnh tối thiểu
+        public int? MinPieces { get; set; }
+        public int? MaxPieces { get; set; }
         public bool? IsFeatured { get; set; }       // chỉ lấy sản phẩm nổi bật
         public string? SortBy { get; set; }         // price_asc, price_desc, newest
         public int Page { get; set; } = 1;          // trang hiện tại

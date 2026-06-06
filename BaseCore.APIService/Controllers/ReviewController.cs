@@ -4,6 +4,7 @@ using BaseCore.Entities;
 using BaseCore.Repository.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace BaseCore.APIService.Controllers
@@ -14,13 +15,16 @@ namespace BaseCore.APIService.Controllers
     {
         private readonly IReviewRepository _reviewRepo;
         private readonly IProductRepository _productRepo;
+        private readonly AppDbContext _context;
 
         public ReviewsController(
             IReviewRepository reviewRepo,
-            IProductRepository productRepo)
+            IProductRepository productRepo,
+            AppDbContext context)
         {
             _reviewRepo = reviewRepo;
             _productRepo = productRepo;
+            _context = context;
         }
 
         // GET api/reviews/product/5
@@ -50,6 +54,16 @@ namespace BaseCore.APIService.Controllers
             if (userIdClaim == null) return Unauthorized();
             int userId = int.Parse(userIdClaim.Value);
 
+            var hasPurchased = await _context.OrderItems
+                .Include(oi => oi.Order)
+                .AnyAsync(oi =>
+                    oi.ProductId == request.ProductId &&
+                    oi.Order.UserId == userId &&
+                    oi.Order.Status == "Delivered"); // chỉ đơn đã giao
+
+            if (!hasPurchased)
+                return BadRequest(new { message = "Bạn cần mua và nhận sản phẩm này trước khi đánh giá" });
+
             // Kiểm tra đã review chưa
             var hasReviewed = await _reviewRepo.HasUserReviewedAsync(userId, request.ProductId);
             if (hasReviewed)
@@ -65,6 +79,32 @@ namespace BaseCore.APIService.Controllers
 
             var created = await _reviewRepo.AddAsync(review);
             return Ok(new { message = "Đánh giá thành công", id = created.Id });
+        }
+
+        // GET api/reviews/can-review/{productId}
+        [Authorize]
+        [HttpGet("can-review/{productId}")]
+        public async Task<IActionResult> CanReview(int productId)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null) return Unauthorized();
+            int userId = int.Parse(userIdClaim.Value);
+
+            var hasPurchased = await _context.OrderItems
+                .Include(oi => oi.Order)
+                .AnyAsync(oi =>
+                    oi.ProductId == productId &&
+                    oi.Order.UserId == userId &&
+                    oi.Order.Status == "Delivered");
+
+            var hasReviewed = await _reviewRepo.HasUserReviewedAsync(userId, productId);
+
+            return Ok(new
+            {
+                canReview = hasPurchased && !hasReviewed,
+                hasPurchased,
+                hasReviewed,
+            });
         }
     }
 }

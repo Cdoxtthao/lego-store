@@ -15,5 +15,6 @@
         public string? SetNumber { get; set; }
         public bool? IsFeatured { get; set; }
         public bool? IsActive { get; set; }
+        public List<string>? Images { get; set; }
     }
 }

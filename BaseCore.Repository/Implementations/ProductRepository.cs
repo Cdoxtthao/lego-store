@@ -22,6 +22,7 @@ namespace BaseCore.Repository.Implementations
                 .Include(p => p.Reviews)
                 .Include(p => p.Images)
                 .Where(p => p.IsActive)
+                .AsNoTracking()
                 .AsQueryable();
 
             // Lọc theo từng tiêu chí — chỉ áp dụng nếu có giá trị
@@ -46,6 +47,9 @@ namespace BaseCore.Repository.Implementations
 
             if (request.MinPieces.HasValue)
                 query = query.Where(p => p.PieceCount >= request.MinPieces);
+
+            if (request.MaxPieces.HasValue)
+                query = query.Where(p => p.PieceCount <= request.MaxPieces.Value);
 
             if (request.IsFeatured.HasValue)
                 query = query.Where(p => p.IsFeatured == request.IsFeatured);

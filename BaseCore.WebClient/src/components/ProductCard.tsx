@@ -1,18 +1,52 @@
 import { Link } from 'react-router-dom';
 import { ProductResponse } from '../types';
 import { getImageUrl } from '../utils/imageHelper';
+import { cartApi } from '../api/cartApi';
+import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import WishlistButton from './WishlistButton';
 
 interface Props {
   product: ProductResponse;
 }
 
 const ProductCard = ({ product }: Props) => {
+  const { isAuthenticated } = useAuth();
+  const { refreshCart } = useCart();
+  const navigate = useNavigate();
+  const [added, setAdded] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.preventDefault(); // không chuyển trang khi click
+    e.stopPropagation();
+
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await cartApi.addToCart(product.id, 1);
+      refreshCart();
+      setAdded(true);
+      setTimeout(() => setAdded(false), 2000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Link to={`/products/${product.id}`}
       className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg transition duration-300">
 
       {/* Ảnh */}
-      <div className="aspect-square bg-flower-50 overflow-hidden relative">
+      <div className=" bg-flower-50 overflow-hidden relative" style={{ aspectRatio: '1' }}>
         {product.imageUrl ? (
           <img src={getImageUrl(product.imageUrl)} alt={product.name}
             className="w-full h-full object-contain group-hover:scale-105 transition duration-300"
@@ -34,10 +68,19 @@ const ProductCard = ({ product }: Props) => {
             ⭐ Nổi bật
           </span>
         )}
+
+        {/* Badge hết hàng trên ảnh */}
+        {product.stockQuantity === 0 && (
+          <div className="absolute inset-0 bg-black/30 flex items-center justify-center rounded-t-2xl">
+            <span className="bg-white text-gray-700 text-xs font-bold px-3 py-1 rounded-full">
+              Hết hàng
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Thông tin */}
-      <div className="p-4">
+      <div className="p-4 flex flex-col flex-1">
         {/* Danh mục */}
         {product.categoryName && (
           <p className="text-xs text-flower-100 font-medium mb-1">{product.categoryName}</p>
@@ -74,6 +117,27 @@ const ProductCard = ({ product }: Props) => {
         {product.pieceCount && (
           <p className="text-xs text-gray-400 mt-1">{product.pieceCount} mảnh</p>
         )}
+
+        {/* Nút thêm giỏ */}
+        <div className="flex gap-2 mt-auto pt-2">
+          <button
+            onClick={handleAddToCart || product.stockQuantity === 0}
+            disabled={loading}
+            className={`flex-1 py-2 rounded-lg text-sm font-semibold transition text-white
+              ${product.stockQuantity === 0
+                ? 'bg-gray-300 cursor-not-allowed'        // ← hết hàng
+                : added
+                ? 'bg-green-500'
+                : 'bg-flower-100 hover:bg-flower-150'}
+              disabled:opacity-50`}>
+            {product.stockQuantity === 0
+              ? 'Hết hàng'
+              : loading ? '...'
+              : added ? '✓ Đã thêm'
+              : 'Thêm vào giỏ'}
+          </button>
+          <WishlistButton productId={product.id} />
+        </div>
       </div>
     </Link>
   );
