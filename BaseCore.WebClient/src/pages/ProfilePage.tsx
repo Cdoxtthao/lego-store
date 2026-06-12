@@ -10,6 +10,7 @@ import { cartApi } from '../api/cartApi';
 import { useCart } from '../context/CartContext';
 import { useNavigate } from 'react-router-dom';
 import imageCompression from 'browser-image-compression';
+import * as signalR from '@microsoft/signalr';
 
 const ProfilePage = ({ initialTab = 'info' }: { initialTab?: 'info' | 'password' | 'orders' }) => {
   const { user, login } = useAuth();
@@ -495,13 +496,13 @@ const OrdersTab = () => {
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<number | null>(null);
+  const [receivingId, setReceivingId] = useState<number | null>(null);
+  const [confirmReceiveId, setConfirmReceiveId] = useState<number | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewOrder, setReviewOrder] = useState<any>(null);
   const [reviewedOrders, setReviewedOrders] = useState<number[]>([]);
   const { refreshCart } = useCart();
   const navigate = useNavigate();
-
-  useEffect(() => { fetchOrders(); }, []);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -512,15 +513,8 @@ const OrdersTab = () => {
       const reviewed: number[] = [];
       for (const order of res.data) {
         if (order.status === 'Delivered' && order.items?.length > 0) {
-          const checks = await Promise.all(
-            order.items.map((item: any) =>
-              axiosClient.get(`/Reviews/can-review/${item.productId}`)
-                .then(r => r.data)
-                .catch(() => ({ canReview: false, hasReviewed: false }))
-            )
-          );
-          // Nếu tất cả sản phẩm đều đã review → đánh dấu đơn đã review
-          if (checks.every(c => c.hasReviewed)) {
+          // Sử dụng thuộc tính isReviewed do backend tính toán và trả về trực tiếp
+          if (order.items.every((item: any) => item.isReviewed)) {
             reviewed.push(order.id);
           }
         }
@@ -532,6 +526,28 @@ const OrdersTab = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchOrders();
+
+    // Kết nối SignalR để tự động cập nhật trạng thái đơn hàng khi admin xử lý
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl('https://localhost:7175/hubs/chat', {
+        accessTokenFactory: () => token || '',
+      })
+      .withAutomaticReconnect()
+      .build();
+
+    connection.on('ReceiveOrderStatusUpdate', (data: any) => {
+      fetchOrders();
+    });
+
+    connection.start().catch(err => console.error('SignalR in User Orders:', err));
+
+    return () => { connection.stop(); };
+  }, []);
 
   const handleCancel = async (id: number) => {
     setCancellingId(id);
@@ -546,23 +562,22 @@ const OrdersTab = () => {
     }
   };
 
-  useEffect(() => {
-    const fetch = async () => {
-      try {
-        const res = await axiosClient.get('/Orders/my');
-        setOrders(res.data);
-      } catch {
-        setOrders([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
-  }, []);
+  const handleReceive = async (id: number) => {
+    setReceivingId(id);
+    try {
+      await orderApi.receiveOrder(id);
+      setConfirmReceiveId(null);
+      fetchOrders(); // reload
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Có lỗi xảy ra');
+    } finally {
+      setReceivingId(null);
+    }
+  };
 
   const statusColors: Record<string, string> = {
     Pending:   'bg-yellow-50 text-yellow-600',
-    Confirmed: 'bg-blue-50 text-blue-600',
+    Confirmed: 'bg-purple-50 text-purple-600',
     Shipping:  'bg-purple-50 text-purple-600',
     Delivered: 'bg-green-50 text-green-600',
     Cancelled: 'bg-red-50 text-red-600',
@@ -570,7 +585,7 @@ const OrdersTab = () => {
 
   const statusLabels: Record<string, string> = {
     Pending:   '⏳ Chờ xác nhận',
-    Confirmed: '✅ Đã xác nhận',
+    Confirmed: '🚚 Đang giao',
     Shipping:  '🚚 Đang giao',
     Delivered: '🎉 Đã giao',
     Cancelled: '❌ Đã hủy',
@@ -660,10 +675,18 @@ const OrdersTab = () => {
 
               <div className="flex gap-2 ml-4">
 
-                {/* Đơn đã giao */}
+                {/* Đang giao -> hiện nút Đã nhận hàng */}
+                {(order.status === 'Shipping' || order.status === 'Confirmed') && (
+                  <button
+                    onClick={() => setConfirmReceiveId(order.id)}
+                    className="px-4 py-2 bg-green-500 text-white rounded-xl text-xs font-medium hover:bg-green-600 transition flex items-center gap-1 shadow-sm">
+                    📦 Đã nhận hàng
+                  </button>
+                )}
+
+                {/* Đơn đã giao -> hiện cả Mua lại và Đánh giá */}
                 {order.status === 'Delivered' && (
-                  reviewedOrders.includes(order.id) ? (
-                    // ← Đã đánh giá → hiện nút Mua lại
+                  <>
                     <button
                       onClick={async () => {
                         for (const item of order.items || []) {
@@ -679,18 +702,25 @@ const OrdersTab = () => {
                       </svg>
                       Mua lại
                     </button>
-                  ) : (
-                    // ← Chưa đánh giá → hiện nút Đánh giá
-                    <button
-                      onClick={() => { setReviewOrder(order); setShowReviewModal(true); }}
-                      className="px-4 py-2 border border-flower-100 text-flower-100 rounded-xl text-xs font-medium hover:bg-flower-50 transition">
-                      ⭐ Đánh giá
-                    </button>
-                  )
+
+                    {reviewedOrders.includes(order.id) ? (
+                      <button
+                        disabled
+                        className="px-4 py-2 border border-gray-200 text-gray-400 bg-gray-50 rounded-xl text-xs font-medium cursor-not-allowed">
+                        ✓ Đã đánh giá
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => { setReviewOrder(order); setShowReviewModal(true); }}
+                        className="px-4 py-2 border border-flower-100 text-flower-100 rounded-xl text-xs font-medium hover:bg-flower-50 transition">
+                        ⭐ Đánh giá
+                      </button>
+                    )}
+                  </>
                 )}
 
-                {/* Hủy đơn — giữ nguyên */}
-                {(order.status === 'Pending' || order.status === 'Confirmed') && (
+                {/* Chưa xác nhận (Pending) -> có thể hủy */}
+                {order.status === 'Pending' && (
                   <button
                     onClick={() => setConfirmCancelId(order.id)}
                     className="px-4 py-2 border border-red-200 text-red-500 rounded-xl text-xs font-medium hover:bg-red-50 transition">
@@ -734,10 +764,43 @@ const OrdersTab = () => {
         </div>
       )}
 
+      {confirmReceiveId && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <div className="text-center mb-5">
+              <span className="text-4xl block mb-3">📦</span>
+              <h3 className="font-bold text-gray-800 text-lg">Đã nhận được hàng?</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Bạn xác nhận đã nhận được đơn hàng #{confirmReceiveId} đầy đủ và nguyên vẹn?
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                Trạng thái đơn hàng sẽ chuyển thành Đã giao ở cả admin và user, giao dịch sẽ hoàn tất và không thể chuyển trạng thái được nữa.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmReceiveId(null)}
+                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition">
+                Chưa nhận
+              </button>
+              <button
+                onClick={() => handleReceive(confirmReceiveId)}
+                disabled={receivingId === confirmReceiveId}
+                className="flex-1 py-2.5 bg-green-500 text-white rounded-xl text-sm font-medium hover:bg-green-600 transition disabled:opacity-50">
+                {receivingId === confirmReceiveId ? 'Đang xác nhận...' : 'Xác nhận đã nhận'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showReviewModal && reviewOrder && (
         <ReviewOrderModal
           order={reviewOrder}
-          onClose={() => setShowReviewModal(false)}
+          onClose={() => {
+            setShowReviewModal(false);
+            fetchOrders();
+          }}
           onSaved={() => {
             setShowReviewModal(false);
             fetchOrders();
@@ -1101,7 +1164,9 @@ const ReviewOrderModal = ({
   );
   const [hoverRating, setHoverRating] = useState<Record<number, number>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState<number[]>([]);
+  const [submitted, setSubmitted] = useState<number[]>(
+    order.items?.filter((item: any) => item.isReviewed).map((item: any) => item.productId) || []
+  );
   const [errors, setErrors] = useState<Record<number, string>>({});
 
   const handleSubmitOne = async (productId: number) => {

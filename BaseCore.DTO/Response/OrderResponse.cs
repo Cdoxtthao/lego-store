@@ -1,4 +1,4 @@
-﻿namespace BaseCore.DTO.Response
+namespace BaseCore.DTO.Response
 {
     public class OrderResponse
     {
@@ -22,5 +22,6 @@
         public int Quantity { get; set; }
         public decimal Price { get; set; }
         public decimal Subtotal { get; set; }
+        public bool IsReviewed { get; set; }
     }
 }

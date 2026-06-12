@@ -20,4 +20,8 @@ export const orderApi = {
     const res = await axiosClient.put(`/Orders/${id}/cancel`);
     return res.data;
   },
+  receiveOrder: async (id: number) => {
+    const res = await axiosClient.put(`/Orders/${id}/receive`);
+    return res.data;
+  },
 };

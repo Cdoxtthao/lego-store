@@ -1,4 +1,4 @@
-﻿using BaseCore.Entities;
+using BaseCore.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -108,14 +108,18 @@ namespace BaseCore.APIService.Controllers
         [HttpGet("order-status-chart")]
         public async Task<IActionResult> GetOrderStatusChart()
         {
-            var statuses = new[] { "Pending", "Confirmed", "Shipping", "Delivered", "Cancelled" };
-            var data = new List<object>();
+            var pendingCount = await _context.Orders.CountAsync(o => o.Status == "Pending");
+            var shippingCount = await _context.Orders.CountAsync(o => o.Status == "Confirmed" || o.Status == "Shipping");
+            var deliveredCount = await _context.Orders.CountAsync(o => o.Status == "Delivered");
+            var cancelledCount = await _context.Orders.CountAsync(o => o.Status == "Cancelled");
 
-            foreach (var status in statuses)
+            var data = new List<object>
             {
-                var count = await _context.Orders.CountAsync(o => o.Status == status);
-                data.Add(new { status, count });
-            }
+                new { status = "Pending", count = pendingCount },
+                new { status = "Confirmed", count = shippingCount },
+                new { status = "Delivered", count = deliveredCount },
+                new { status = "Cancelled", count = cancelledCount }
+            };
             return Ok(data);
         }
 

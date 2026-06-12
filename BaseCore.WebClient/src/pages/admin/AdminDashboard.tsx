@@ -155,7 +155,51 @@ const AdminDashboard = () => {
     )
   );
 
-  // Kết nối SignalR để nhận tin nhắn mới
+  const fetchAll = async () => {
+    try {
+      // Fetch notifications
+      const notifRes = await axiosClient.get('/Dashboard/notifications');
+      const notifs = notifRes.data;
+      setUnreadCount(notifs.filter((n: any) => !n.isRead).length);
+
+      // Fetch tin nhắn chưa đọc
+      const msgRes = await axiosClient.get('/Messages/conversations');
+      const unreadConvs = msgRes.data.filter((c: any) => c.unreadCount > 0);
+
+      const msgNotifs = unreadConvs.map((c: any) => ({
+        id: `msg-${c.userId}`,
+        type: 'new_message',
+        title: 'Tin nhắn chưa đọc',
+        message: `${c.userName}: ${c.lastMessage}`,
+        createdAt: c.lastTime,
+        isRead: false,
+        link: '/admin/chat',
+        unreadCount: c.unreadCount,
+      }));
+
+      const allNotifs = [...msgNotifs, ...notifs];
+      const withReadState = allNotifs.map(n => ({
+          ...n,
+          isRead: readIdsRef.current.has(n.id) ? true : n.isRead,
+      }));
+      setNotifications(withReadState);
+
+      const unreadNotifs = withReadState.filter(
+        n => !n.isRead && n.type !== 'new_message'
+      ).length;
+      const unreadMsgs = withReadState.filter(
+        n => !n.isRead && n.type === 'new_message'
+      ).length;
+
+      setUnreadCount(unreadNotifs);
+      setUnreadMessages(unreadMsgs);
+
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Kết nối SignalR để nhận tin nhắn và thông báo mới
   useEffect(() => {
     const token = localStorage.getItem('token');
     const connection = new signalR.HubConnectionBuilder()
@@ -184,6 +228,20 @@ const AdminDashboard = () => {
       }
     });
 
+    // Nhận thông báo đơn hàng mới thời gian thực
+    connection.on('ReceiveOrderNotification', (notif: any) => {
+      setNotifications(prev => [notif, ...prev]);
+      setUnreadCount(prev => prev + 1);
+      
+      // Cũng trigger re-fetch toàn bộ thông tin
+      fetchAll();
+    });
+
+    // Nhận thông báo cập nhật trạng thái đơn hàng thời gian thực
+    connection.on('ReceiveOrderStatusUpdate', (data: any) => {
+      fetchAll();
+    });
+
     connection.start().catch(err => console.error('SignalR:', err));
     chatConnectionRef.current = connection;
 
@@ -191,50 +249,6 @@ const AdminDashboard = () => {
   }, []);
 
   useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        // Fetch notifications
-        const notifRes = await axiosClient.get('/Dashboard/notifications');
-        const notifs = notifRes.data;
-        setUnreadCount(notifs.filter((n: any) => !n.isRead).length);
-
-        // Fetch tin nhắn chưa đọc
-        const msgRes = await axiosClient.get('/Messages/conversations');
-        const unreadConvs = msgRes.data.filter((c: any) => c.unreadCount > 0);
-
-        const msgNotifs = unreadConvs.map((c: any) => ({
-          id: `msg-${c.userId}`,
-          type: 'new_message',
-          title: 'Tin nhắn chưa đọc',
-          message: `${c.userName}: ${c.lastMessage}`,
-          createdAt: c.lastTime,
-          isRead: false,
-          link: '/admin/chat',
-          unreadCount: c.unreadCount,
-        }));
-
-        const allNotifs = [...msgNotifs, ...notifs];
-        const withReadState = allNotifs.map(n => ({
-            ...n,
-            isRead: readIdsRef.current.has(n.id) ? true : n.isRead,
-        }));
-        setNotifications(withReadState);
-
-        const unreadNotifs = withReadState.filter(
-          n => !n.isRead && n.type !== 'new_message'
-        ).length;
-        const unreadMsgs = withReadState.filter(
-          n => !n.isRead && n.type === 'new_message'
-        ).length;
-
-        setUnreadCount(unreadNotifs);
-        setUnreadMessages(unreadMsgs);
-
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
     fetchAll();
     const interval = setInterval(fetchAll, 30000);
     return () => clearInterval(interval);
@@ -558,7 +572,7 @@ const DashboardHome = () => {
 
   const statusColors: Record<string, string> = {
     Pending:   '#F59E0B',
-    Confirmed: '#3B82F6',
+    Confirmed: '#8B5CF6',
     Shipping:  '#8B5CF6',
     Delivered: '#10B981',
     Cancelled: '#EF4444',
@@ -566,7 +580,7 @@ const DashboardHome = () => {
 
   const statusLabels: Record<string, string> = {
     Pending:   'Chờ xác nhận',
-    Confirmed: 'Đã xác nhận',
+    Confirmed: 'Đang giao',
     Shipping:  'Đang giao',
     Delivered: 'Đã giao',
     Cancelled: 'Đã hủy',

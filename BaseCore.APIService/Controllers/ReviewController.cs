@@ -1,4 +1,4 @@
-﻿using BaseCore.DTO.Request;
+using BaseCore.DTO.Request;
 using BaseCore.DTO.Response;
 using BaseCore.Entities;
 using BaseCore.Repository.Interfaces;
@@ -54,20 +54,23 @@ namespace BaseCore.APIService.Controllers
             if (userIdClaim == null) return Unauthorized();
             int userId = int.Parse(userIdClaim.Value);
 
-            var hasPurchased = await _context.OrderItems
+            // Đếm số lần đã mua và nhận hàng thành công
+            var purchaseCount = await _context.OrderItems
                 .Include(oi => oi.Order)
-                .AnyAsync(oi =>
+                .CountAsync(oi =>
                     oi.ProductId == request.ProductId &&
                     oi.Order.UserId == userId &&
-                    oi.Order.Status == "Delivered"); // chỉ đơn đã giao
+                    oi.Order.Status == "Delivered");
 
-            if (!hasPurchased)
+            // Đếm số lần đã đánh giá
+            var reviewCount = await _context.Reviews
+                .CountAsync(r => r.ProductId == request.ProductId && r.UserId == userId);
+
+            if (purchaseCount == 0)
                 return BadRequest(new { message = "Bạn cần mua và nhận sản phẩm này trước khi đánh giá" });
 
-            // Kiểm tra đã review chưa
-            var hasReviewed = await _reviewRepo.HasUserReviewedAsync(userId, request.ProductId);
-            if (hasReviewed)
-                return BadRequest(new { message = "Bạn đã đánh giá sản phẩm này rồi" });
+            if (reviewCount >= purchaseCount)
+                return BadRequest(new { message = "Bạn đã đánh giá sản phẩm này tương đương số lần mua rồi" });
 
             var review = new Review
             {
@@ -90,20 +93,21 @@ namespace BaseCore.APIService.Controllers
             if (userIdClaim == null) return Unauthorized();
             int userId = int.Parse(userIdClaim.Value);
 
-            var hasPurchased = await _context.OrderItems
+            var purchaseCount = await _context.OrderItems
                 .Include(oi => oi.Order)
-                .AnyAsync(oi =>
+                .CountAsync(oi =>
                     oi.ProductId == productId &&
                     oi.Order.UserId == userId &&
                     oi.Order.Status == "Delivered");
 
-            var hasReviewed = await _reviewRepo.HasUserReviewedAsync(userId, productId);
+            var reviewCount = await _context.Reviews
+                .CountAsync(r => r.ProductId == productId && r.UserId == userId);
 
             return Ok(new
             {
-                canReview = hasPurchased && !hasReviewed,
-                hasPurchased,
-                hasReviewed,
+                canReview = purchaseCount > reviewCount,
+                hasPurchased = purchaseCount > 0,
+                hasReviewed = reviewCount >= purchaseCount,
             });
         }
     }

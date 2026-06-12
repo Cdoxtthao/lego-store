@@ -1,4 +1,4 @@
-﻿using BaseCore.Entities;
+using BaseCore.Entities;
 using BaseCore.Repository.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,7 +19,16 @@ namespace BaseCore.Repository.Implementations
                 .AsQueryable();
 
             if (!string.IsNullOrEmpty(status))
-                query = query.Where(o => o.Status == status);
+            {
+                if (status == "Confirmed" || status == "Shipping")
+                {
+                    query = query.Where(o => o.Status == "Confirmed" || o.Status == "Shipping");
+                }
+                else
+                {
+                    query = query.Where(o => o.Status == status);
+                }
+            }
 
             var total = await query.CountAsync();
             var items = await query

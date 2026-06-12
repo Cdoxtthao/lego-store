@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { orderApi } from '../../api/orderApi';
 import { OrderResponse } from '../../types';
+import * as signalR from '@microsoft/signalr';
 
 const statusColors: Record<string, string> = {
   Pending:   'bg-yellow-50 text-yellow-600',
-  Confirmed: 'bg-blue-50 text-blue-600',
+  Confirmed: 'bg-purple-50 text-purple-600',
   Shipping:  'bg-purple-50 text-purple-600',
   Delivered: 'bg-green-50 text-green-600',
   Cancelled: 'bg-red-50 text-red-600',
@@ -12,7 +13,7 @@ const statusColors: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
   Pending:   '⏳ Chờ xác nhận',
-  Confirmed: '✅ Đã xác nhận',
+  Confirmed: '🚚 Đang giao',
   Shipping:  '🚚 Đang giao',
   Delivered: '🎉 Đã giao',
   Cancelled: '❌ Đã hủy',
@@ -25,9 +26,40 @@ const AdminOrders = () => {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<OrderResponse | null>(null);
+  const selectedOrderRef = useRef<OrderResponse | null>(null);
   const pageSize = 10;
 
+  useEffect(() => {
+    selectedOrderRef.current = selectedOrder;
+  }, [selectedOrder]);
+
   useEffect(() => { fetchOrders(); }, [page, statusFilter]);
+
+  // Kết nối SignalR để tự động cập nhật danh sách đơn hàng
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl('https://localhost:7175/hubs/chat', {
+        accessTokenFactory: () => token || '',
+      })
+      .withAutomaticReconnect()
+      .build();
+
+    connection.on('ReceiveOrderStatusUpdate', (data: any) => {
+      fetchOrders();
+      if (selectedOrderRef.current && selectedOrderRef.current.id === data.orderId) {
+        setSelectedOrder(prev => prev ? { ...prev, status: data.status } : null);
+      }
+    });
+
+    connection.on('ReceiveOrderNotification', (notif: any) => {
+      fetchOrders();
+    });
+
+    connection.start().catch(err => console.error('SignalR in AdminOrders:', err));
+
+    return () => { connection.stop(); };
+  }, []);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -62,7 +94,7 @@ const AdminOrders = () => {
 
       {/* Filter status */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        {['', 'Pending', 'Confirmed', 'Shipping', 'Delivered', 'Cancelled'].map(s => (
+        {['', 'Pending', 'Confirmed', 'Delivered', 'Cancelled'].map(s => (
           <button key={s}
             onClick={() => { setStatusFilter(s); setPage(1); }}
             className={`px-4 py-2 rounded-xl text-sm font-medium transition
@@ -212,22 +244,36 @@ const AdminOrders = () => {
 
               {/* Cập nhật trạng thái */}
               <div className="border-t border-gray-100 pt-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Cập nhật trạng thái</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {['Confirmed', 'Shipping', 'Delivered', 'Cancelled'].map(s => (
+                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Trạng thái đơn hàng</p>
+                {selectedOrder.status === 'Pending' ? (
+                  <div className="flex gap-2">
                     <button
-                      key={s}
-                      onClick={() => handleUpdateStatus(selectedOrder.id, s)}
-                      disabled={selectedOrder.status === s}
-                      className={`py-1.5 text-xs rounded-lg border transition font-medium
-                        ${selectedOrder.status === s
-                          ? 'border-flower-100 bg-flower-50 text-flower-100'
-                          : 'border-gray-200 text-gray-600 hover:border-flower-100 hover:text-flower-100'}
-                        disabled:cursor-default`}>
-                      {statusLabels[s]}
+                      onClick={() => handleUpdateStatus(selectedOrder.id, 'Confirmed')}
+                      className="flex-1 py-2 text-xs rounded-xl bg-green-500 text-white font-medium hover:bg-green-600 transition shadow-sm">
+                      ✅ Xác nhận đơn
                     </button>
-                  ))}
-                </div>
+                    <button
+                      onClick={() => handleUpdateStatus(selectedOrder.id, 'Cancelled')}
+                      className="flex-1 py-2 text-xs rounded-xl border border-red-200 text-red-500 font-medium hover:bg-red-50 transition">
+                      ❌ Hủy đơn hàng
+                    </button>
+                  </div>
+                ) : (selectedOrder.status === 'Confirmed' || selectedOrder.status === 'Shipping') ? (
+                  <div className="p-3 bg-purple-50 border border-purple-100 rounded-xl text-center">
+                    <p className="text-xs font-semibold text-purple-700">🚚 Đang giao hàng / Đã xác nhận</p>
+                    <p className="text-[10px] text-purple-500 mt-0.5">Chờ khách hàng xác nhận đã nhận hàng</p>
+                  </div>
+                ) : selectedOrder.status === 'Delivered' ? (
+                  <div className="p-3 bg-green-50 border border-green-100 rounded-xl text-center">
+                    <p className="text-xs font-semibold text-green-700">🎉 Đã giao hàng thành công</p>
+                    <p className="text-[10px] text-green-500 mt-0.5">Đơn hàng hoàn tất và đã được khóa</p>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-center">
+                    <p className="text-xs font-semibold text-red-700">❌ Đơn hàng đã hủy</p>
+                    <p className="text-[10px] text-red-500 mt-0.5">Không thể thay đổi trạng thái</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
