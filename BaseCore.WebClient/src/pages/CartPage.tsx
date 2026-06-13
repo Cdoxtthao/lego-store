@@ -278,7 +278,7 @@ const CartPage = () => {
       <div className="max-w-5xl mx-auto px-6 py-8">
 
         <h1 className="text-2xl font-bold text-gray-800 mb-8">
-          🛒 Giỏ hàng {!isEmpty && `(${cart.itemCount} sản phẩm)`}
+          🛒 Giỏ hàng {!isEmpty && `(${cart.items.length} sản phẩm)`}
         </h1>
 
         {isEmpty ? (

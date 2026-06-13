@@ -26,7 +26,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     }
     try {
       const cart = await cartApi.getCart();
-      setCartCount(cart?.itemCount || 0);
+      setCartCount(cart?.items?.length || 0);
     } catch { setCartCount(0); }
   };
 

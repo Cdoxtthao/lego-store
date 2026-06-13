@@ -493,16 +493,13 @@ const Navbar = () => {
               )}
             </Link>
 
-            <button onClick={() => setShowChat(!showChat)}
-              className="p-2 text-gray-500 hover:text-flower-100 transition">
+            <Link to="/orders"
+              className="p-2 text-gray-500 hover:text-flower-100 transition relative group">
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                {/* Mic nhỏ */}
-                <circle cx="19" cy="19" r="3" fill="currentColor" stroke="none" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 16v-1M19 22v-1" stroke="currentColor" />
+                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
-            </button>
+            </Link>
 
             <button
               onClick={handleOpenCart}
@@ -672,7 +669,7 @@ const Navbar = () => {
   {/* Header */}
   <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
     <h3 className="font-bold text-gray-800 text-lg">
-      🛒 Giỏ hàng {cart?.itemCount ? `(${cart.itemCount})` : ''}
+      🛒 Giỏ hàng {cart?.items?.length ? `(${cart.items.length})` : ''}
     </h3>
     <button
       onClick={() => setShowCart(false)}
