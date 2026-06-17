@@ -171,7 +171,7 @@ const CartPage = () => {
         {/* QR Code */}
         <div className="border-2 border-dashed border-gray-200 rounded-2xl p-4 mb-4">
           <img
-            src={`https://localhost:7175/images/payment/${paymentMethod === 'MoMo' ? 'momo-qr' : 'zalopay-qr'}.jpg`}
+            src={`http://localhost:5210/images/payment/${paymentMethod === 'MoMo' ? 'momo-qr' : 'zalopay-qr'}.jpg`}
             alt={`QR ${paymentMethod}`}
             className="w-48 h-48 mx-auto object-cover"
             onError={(e) => {

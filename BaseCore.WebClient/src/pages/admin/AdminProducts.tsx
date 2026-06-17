@@ -328,7 +328,7 @@ const ProductModal = ({
     isFeatured: product?.isFeatured || false,
   });
   const [previewImage, setPreviewImage] = useState<string>(
-  product?.imageUrl ? `https://localhost:7175${product.imageUrl}` : ''
+  product?.imageUrl ? `http://localhost:5210${product.imageUrl}` : ''
   );
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -380,7 +380,7 @@ const ProductModal = ({
 
   const handleSetMainImage = (url: string) => {
     setForm(prev => ({ ...prev, imageUrl: url }));
-    setPreviewImage(`https://localhost:7175${url}`);
+    setPreviewImage(`http://localhost:5210${url}`);
   };
 
   const handleSave = async () => {
@@ -625,7 +625,7 @@ const ProductModal = ({
                     setPreviewImage(
                     e.target.value.startsWith('http')
                         ? e.target.value
-                        : `https://localhost:7175${e.target.value}`
+                        : `http://localhost:5210${e.target.value}`
                     );
                 } else {
                     setPreviewImage('');
@@ -684,7 +684,7 @@ const ProductModal = ({
           onClick={() => handleSetMainImage(url)}
           title="Click để đặt làm ảnh chính">
           <img
-            src={url.startsWith('http') ? url : `https://localhost:7175${url}`}
+            src={url.startsWith('http') ? url : `http://localhost:5210${url}`}
             alt={`Ảnh ${index + 1}`}
             className="w-full h-full object-contain p-1"
             onError={(e) => { e.currentTarget.style.opacity = '0.3'; }}

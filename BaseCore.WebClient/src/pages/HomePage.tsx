@@ -112,7 +112,7 @@ const HeroBanner = () => {
           />
 
           <img
-            src={`https://localhost:7175${banner.image}`}
+            src={`http://localhost:5210${banner.image}`}
             alt={banner.title}
             className="h-80 object-contain relative z-0"
             style={{ maxWidth: '480px' }}
@@ -159,7 +159,7 @@ const CategorySection = () => (
 
           {/* Ảnh nền */}
           <img
-            src={`https://localhost:7175${cat.image}`}
+            src={`http://localhost:5210${cat.image}`}
             alt={cat.name}
             className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
           />
@@ -289,7 +289,7 @@ const ProductSection = ({
           style={{ minHeight: '480px' }}>
           {bannerImage ? (
             <img
-              src={`https://localhost:7175${bannerImage}`}
+              src={`http://localhost:5210${bannerImage}`}
               alt={title}
               className="w-full h-full object-contain object-center"
             />
@@ -475,7 +475,7 @@ const DiscoverSection = () => (
 
           {/* Ảnh */}
           <img
-            src={`https://localhost:7175${item.image}`}
+            src={`http://localhost:5210${item.image}`}
             alt={item.title}
             className="absolute inset-0 w-full h-full object-cover opacity-40"
           />

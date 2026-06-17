@@ -26,7 +26,7 @@ const AdminChat = () => {
   const setupSignalR = async () => {
     const token = localStorage.getItem('token');
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl('https://localhost:7175/hubs/chat', {
+      .withUrl('http://localhost:5210/hubs/chat', {
         accessTokenFactory: () => token || '',
       })
       .withAutomaticReconnect()
@@ -144,7 +144,7 @@ const AdminChat = () => {
                       <img
                         src={conv.avatarUrl.startsWith('http')
                           ? conv.avatarUrl
-                          : `https://localhost:7175${conv.avatarUrl}`}
+                          : `http://localhost:5210${conv.avatarUrl}`}
                         alt={conv.userName}
                         className="w-full h-full object-cover"
                       />
@@ -200,7 +200,7 @@ const AdminChat = () => {
                     <img
                       src={selectedUser.avatarUrl.startsWith('http')
                         ? selectedUser.avatarUrl
-                        : `https://localhost:7175${selectedUser.avatarUrl}`}
+                        : `http://localhost:5210${selectedUser.avatarUrl}`}
                       alt={selectedUser.userName}
                       className="w-full h-full object-cover"
                     />

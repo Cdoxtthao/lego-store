@@ -209,7 +209,7 @@ const ProfilePage = ({ initialTab = 'info' }: { initialTab?: 'info' | 'password'
   const avatarUrl = form.avatarUrl
     ? (form.avatarUrl.startsWith('http')
         ? form.avatarUrl
-        : `https://localhost:7175${form.avatarUrl}`)
+        : `http://localhost:5210${form.avatarUrl}`)
     : null;
 
   return (
@@ -627,7 +627,7 @@ const OrdersTab = () => {
                     <div className="w-12 h-12 flex-shrink-0 bg-flower-50 rounded-lg overflow-hidden">
                       <img
                         src={item.productImage
-                          ? `https://localhost:7175${item.productImage}`
+                          ? `http://localhost:5210${item.productImage}`
                           : ''}
                         alt={item.productName}
                         className="w-full h-full object-contain p-1"
@@ -1173,7 +1173,7 @@ const ReviewOrderModal = ({
                 <div className="w-14 h-14 bg-flower-50 rounded-xl overflow-hidden flex-shrink-0">
                   <img
                     src={item.productImage
-                      ? `https://localhost:7175${item.productImage}`
+                      ? `http://localhost:5210${item.productImage}`
                       : ''}
                     alt={item.productName}
                     className="w-full h-full object-contain p-1"

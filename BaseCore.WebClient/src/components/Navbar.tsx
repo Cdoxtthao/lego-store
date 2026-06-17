@@ -143,7 +143,7 @@ const ChatBox = ({ onClose }: { onClose: () => void }) => {
 
     const token = localStorage.getItem('token');
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl('https://localhost:7175/hubs/chat', {
+      .withUrl('http://localhost:5210/hubs/chat', {
         accessTokenFactory: () => token || '',
       })
       .withAutomaticReconnect()
@@ -160,7 +160,7 @@ const ChatBox = ({ onClose }: { onClose: () => void }) => {
     connectionRef.current = connection;
 
     // Load lịch sử
-    fetch('https://localhost:7175/api/Messages/my', {
+    fetch('http://localhost:5210/api/Messages/my', {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => res.json())
@@ -529,7 +529,7 @@ const Navbar = () => {
                       <img
                         src={user.avatarUrl.startsWith('http')
                           ? user.avatarUrl
-                          : `https://localhost:7175${user.avatarUrl}`}
+                          : `http://localhost:5210${user.avatarUrl}`}
                         alt={user.fullName}
                         className="w-full h-full rounded-full object-cover"
                         onError={(e) => { e.currentTarget.style.display = 'none'; }}

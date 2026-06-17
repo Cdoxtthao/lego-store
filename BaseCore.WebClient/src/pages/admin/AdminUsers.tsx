@@ -149,7 +149,7 @@ const AdminUsers = () => {
                             <img
                               src={user.avatarUrl.startsWith('http')
                                 ? user.avatarUrl
-                                : `https://localhost:7175${user.avatarUrl}`}
+                                : `http://localhost:5210${user.avatarUrl}`}
                               alt={user.fullName}
                               className="w-full h-full rounded-full object-cover"
                               onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -206,7 +206,7 @@ const AdminUsers = () => {
                 <div className="w-16 h-16 rounded-full bg-flower-100 flex items-center justify-center text-white text-2xl font-bold mb-3">
                   {selectedUser.avatarUrl ? (
                     <img
-                      src={selectedUser.avatarUrl.startsWith('http') ? selectedUser.avatarUrl : `https://localhost:7175${selectedUser.avatarUrl}`}
+                      src={selectedUser.avatarUrl.startsWith('http') ? selectedUser.avatarUrl : `http://localhost:5210${selectedUser.avatarUrl}`}
                       alt={selectedUser.fullName}
                       className="w-full h-full rounded-full object-cover"
                       onError={(e) => { e.currentTarget.style.display = 'none'; }}

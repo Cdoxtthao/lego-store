@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
             // ← Fetch avatarUrl mới nhất từ API
             try {
-              const res = await fetch('https://localhost:7175/api/Users/me', {
+              const res = await fetch('http://localhost:5210/api/Users/me', {
                 headers: { Authorization: `Bearer ${token}` },
               });
               if (res.ok) {

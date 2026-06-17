@@ -220,7 +220,7 @@ const CategoryModal = ({
   });
   const [previewImage, setPreviewImage] = useState(
     category?.imageUrl
-      ? `https://localhost:7175${category.imageUrl}`
+      ? `http://localhost:5210${category.imageUrl}`
       : ''
   );
   const [uploading, setUploading] = useState(false);
@@ -326,7 +326,7 @@ const CategoryModal = ({
                   onChange={(e) => {
                     setForm({ ...form, imageUrl: e.target.value });
                     setPreviewImage(e.target.value
-                      ? `https://localhost:7175${e.target.value}`
+                      ? `http://localhost:5210${e.target.value}`
                       : '');
                   }}
                   placeholder="/images/categories/..."
