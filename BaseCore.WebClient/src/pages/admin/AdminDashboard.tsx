@@ -65,6 +65,28 @@ const menuItems = [
     roles: ['Admin', 'Supplier'],
   },
   {
+    label: 'Biên lai',
+    path: '/admin/receipts',
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+    roles: ['Admin', 'Supplier'],
+  },
+  {
+    label: 'Đề nghị',
+    path: '/admin/proposals',
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+    roles: ['Supplier'],
+  },
+  {
     label: 'Hàng trả lại',  
     path: '/admin/returns',
     icon: (
@@ -73,7 +95,7 @@ const menuItems = [
           d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
       </svg>
     ),
-    roles: ['Admin', 'Supplier'],
+    roles: ['Admin'],
   },
   {
     label: 'Người dùng',
@@ -277,7 +299,7 @@ const AdminDashboard = () => {
           {!collapsed && (
             <Link to="/" className="text-lg font-bold text-flower-100"
               style={{ fontFamily: 'Georgia, serif' }}>
-              BrickDo Admin
+              {isSupplier ? 'BrickDo Supplier' : 'BrickDo Admin'}
             </Link>
           )}
           <button
@@ -529,7 +551,7 @@ const AdminDashboard = () => {
 
           {/* Chỉ hiện stats khi ở trang dashboard chính */}
           {location.pathname === '/admin'
-            ? <DashboardHome />
+            ? (isSupplier ? <SupplierDashboardHome /> : <DashboardHome />)
             : <Outlet />
           }
         </main>
@@ -838,6 +860,296 @@ const DashboardHome = () => {
         )}
       </div>
 
+    </div>
+  );
+};
+
+// ─── Supplier Dashboard Home ──────────────────────────────────────────────────
+const SupplierDashboardHome = () => {
+  const { user } = useAuth();
+  const [receiptStats, setReceiptStats] = useState<any>(null);
+  const [proposalStats, setProposalStats] = useState<any>(null);
+  const [recentReceipts, setRecentReceipts] = useState<any[]>([]);
+  const [recentProposals, setRecentProposals] = useState<any[]>([]);
+  const [stockBatches, setStockBatches] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      setLoading(true);
+      try {
+        const [rStats, pStats, receipts, proposals, batches] = await Promise.all([
+          axiosClient.get('/SupplierReceipts/stats').catch(() => ({ data: null })),
+          axiosClient.get('/SupplierProposals/stats').catch(() => ({ data: null })),
+          axiosClient.get('/SupplierReceipts').catch(() => ({ data: [] })),
+          axiosClient.get('/SupplierProposals').catch(() => ({ data: [] })),
+          axiosClient.get('/StockBatches').catch(() => ({ data: [] })),
+        ]);
+        setReceiptStats(rStats.data);
+        setProposalStats(pStats.data);
+        setRecentReceipts((receipts.data || []).slice(0, 5));
+        setRecentProposals((proposals.data || []).slice(0, 5));
+        setStockBatches((batches.data || []).slice(0, 5));
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAll();
+  }, []);
+
+  const kpiCards = [
+    {
+      label: 'Biên lai chờ xác nhận',
+      value: receiptStats?.pending ?? 0,
+      icon: '📋',
+      color: 'from-amber-400 to-orange-500',
+      bg: 'bg-amber-50',
+      text: 'text-amber-600',
+      action: () => navigate('/admin/receipts?status=Pending'),
+    },
+    {
+      label: 'Biên lai đã xác nhận',
+      value: receiptStats?.confirmed ?? 0,
+      icon: '✅',
+      color: 'from-emerald-400 to-green-500',
+      bg: 'bg-emerald-50',
+      text: 'text-emerald-600',
+      action: () => navigate('/admin/receipts?status=Confirmed'),
+    },
+    {
+      label: 'Đề nghị đang chờ duyệt',
+      value: proposalStats?.pending ?? 0,
+      icon: '📤',
+      color: 'from-blue-400 to-indigo-500',
+      bg: 'bg-blue-50',
+      text: 'text-blue-600',
+      action: () => navigate('/admin/proposals?status=Pending'),
+    },
+    {
+      label: 'Đề nghị được chấp nhận',
+      value: proposalStats?.approved ?? 0,
+      icon: '🎉',
+      color: 'from-violet-400 to-purple-500',
+      bg: 'bg-violet-50',
+      text: 'text-violet-600',
+      action: () => navigate('/admin/proposals?status=Approved'),
+    },
+  ];
+
+  const receiptStatusLabels: Record<string, string> = {
+    Pending: '⏳ Chờ xác nhận',
+    Confirmed: '✅ Đã xác nhận',
+    Disputed: '⚠️ Đang khiếu nại',
+    Resolved: '🔧 Đã giải quyết',
+  };
+  const receiptStatusColors: Record<string, string> = {
+    Pending: 'bg-amber-50 text-amber-600',
+    Confirmed: 'bg-emerald-50 text-emerald-600',
+    Disputed: 'bg-red-50 text-red-600',
+    Resolved: 'bg-blue-50 text-blue-600',
+  };
+  const proposalStatusColors: Record<string, string> = {
+    Pending: 'bg-amber-50 text-amber-600',
+    Approved: 'bg-emerald-50 text-emerald-600',
+    Rejected: 'bg-red-50 text-red-600',
+    Completed: 'bg-blue-50 text-blue-600',
+  };
+  const proposalStatusLabels: Record<string, string> = {
+    Pending: '⏳ Chờ duyệt',
+    Approved: '✅ Được duyệt',
+    Rejected: '❌ Từ chối',
+    Completed: '🎉 Hoàn tất',
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Welcome banner */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-flower-100 via-pink-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
+        <div className="relative z-10">
+          <p className="text-sm font-medium opacity-80 mb-1">Chào mừng trở lại,</p>
+          <h1 className="text-2xl font-bold mb-1">{user?.fullName} 👋</h1>
+          <p className="text-sm opacity-75">Nhà cung cấp · BrickDo Supplier Portal</p>
+        </div>
+        <div className="absolute -right-8 -top-8 w-40 h-40 bg-white/10 rounded-full" />
+        <div className="absolute -right-4 -bottom-12 w-56 h-56 bg-white/10 rounded-full" />
+        <div className="absolute top-4 right-8 text-6xl opacity-20">🏭</div>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {kpiCards.map(card => (
+          <button
+            key={card.label}
+            onClick={card.action}
+            className="bg-white rounded-2xl border border-gray-100 p-4 text-left hover:shadow-md transition group"
+          >
+            <div className={`inline-flex p-2.5 rounded-xl ${card.bg} mb-3 group-hover:scale-110 transition-transform`}>
+              <span className="text-2xl">{card.icon}</span>
+            </div>
+            <p className="text-3xl font-bold text-gray-800 mb-1">
+              {loading ? <span className="inline-block w-12 h-8 bg-gray-100 rounded animate-pulse" /> : card.value}
+            </p>
+            <p className={`text-xs font-medium ${card.text}`}>{card.label}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* Tổng doanh thu đã xác nhận */}
+      {receiptStats?.totalAmount > 0 && (
+        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl border border-emerald-100 p-5 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-emerald-600 mb-1">💰 Tổng giá trị biên lai đã xác nhận</p>
+            <p className="text-3xl font-bold text-emerald-700">
+              {receiptStats.totalAmount.toLocaleString('vi-VN')}đ
+            </p>
+          </div>
+          <div className="text-5xl opacity-30">💵</div>
+        </div>
+      )}
+
+      {/* Quick actions */}
+      <div className="grid grid-cols-2 gap-4">
+        <button
+          onClick={() => navigate('/admin/proposals')}
+          className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 p-5 hover:border-flower-100 hover:shadow-md transition group text-left"
+        >
+          <div className="w-12 h-12 bg-flower-50 rounded-xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+            📤
+          </div>
+          <div>
+            <p className="font-semibold text-gray-800">Tạo đề nghị mới</p>
+            <p className="text-xs text-gray-400">Gửi đề xuất cung ứng hàng cho Admin</p>
+          </div>
+        </button>
+        <button
+          onClick={() => navigate('/admin/receipts')}
+          className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 p-5 hover:border-flower-100 hover:shadow-md transition group text-left"
+        >
+          <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+            📋
+          </div>
+          <div>
+            <p className="font-semibold text-gray-800">Xem biên lai</p>
+            <p className="text-xs text-gray-400">Xác nhận hoặc khiếu nại biên lai từ Admin</p>
+          </div>
+        </button>
+      </div>
+
+      {/* Two-column: Recent receipts + Recent proposals */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Receipts */}
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <h3 className="font-bold text-gray-800 text-sm">📋 Biên lai gần đây</h3>
+            <button onClick={() => navigate('/admin/receipts')}
+              className="text-xs text-flower-100 hover:underline">Xem tất cả</button>
+          </div>
+          {loading ? (
+            <div className="p-4 space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          ) : recentReceipts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+              <span className="text-4xl mb-2">📋</span>
+              <p className="text-sm">Chưa có biên lai nào</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {recentReceipts.map(r => (
+                <div key={r.id}
+                  onClick={() => navigate('/admin/receipts')}
+                  className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition cursor-pointer">
+                  <div>
+                    <p className="text-sm font-semibold text-flower-100">{r.receiptCode}</p>
+                    <p className="text-xs text-gray-500 line-clamp-1">{r.productName} × {r.quantity}</p>
+                  </div>
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${receiptStatusColors[r.status] || 'bg-gray-100 text-gray-500'}`}>
+                    {receiptStatusLabels[r.status] || r.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Recent Proposals */}
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <h3 className="font-bold text-gray-800 text-sm">📤 Đề nghị gần đây</h3>
+            <button onClick={() => navigate('/admin/proposals')}
+              className="text-xs text-flower-100 hover:underline">Xem tất cả</button>
+          </div>
+          {loading ? (
+            <div className="p-4 space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          ) : recentProposals.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+              <span className="text-4xl mb-2">📤</span>
+              <p className="text-sm">Chưa có đề nghị nào</p>
+              <button
+                onClick={() => navigate('/admin/proposals')}
+                className="mt-3 px-4 py-1.5 bg-flower-100 text-white rounded-full text-xs hover:bg-flower-150 transition">
+                Tạo đề nghị mới
+              </button>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {recentProposals.map(p => (
+                <div key={p.id}
+                  onClick={() => navigate('/admin/proposals')}
+                  className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition cursor-pointer">
+                  <div>
+                    <p className="text-sm font-semibold text-flower-100">{p.proposalCode}</p>
+                    <p className="text-xs text-gray-500 line-clamp-1">{p.productName} × {p.proposedQuantity}</p>
+                  </div>
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${proposalStatusColors[p.status] || 'bg-gray-100 text-gray-500'}`}>
+                    {proposalStatusLabels[p.status] || p.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Recent stock activity */}
+      {stockBatches.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <h3 className="font-bold text-gray-800 text-sm">📦 Lô hàng nhập kho gần đây</h3>
+            <button onClick={() => navigate('/admin/stock')}
+              className="text-xs text-flower-100 hover:underline">Xem tất cả</button>
+          </div>
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500 uppercase">Mã lô</th>
+                <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500 uppercase">Sản phẩm</th>
+                <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500 uppercase">SL</th>
+                <th className="text-left px-5 py-2.5 text-xs font-semibold text-gray-500 uppercase">Ngày nhập</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {stockBatches.map(b => (
+                <tr key={b.id} className="hover:bg-gray-50 transition">
+                  <td className="px-5 py-3 text-sm font-mono text-flower-100">{b.batchCode}</td>
+                  <td className="px-5 py-3 text-sm text-gray-700">{b.productName}</td>
+                  <td className="px-5 py-3 text-sm font-semibold text-gray-800">{b.quantity}</td>
+                  <td className="px-5 py-3 text-xs text-gray-400">
+                    {new Date(b.importDate).toLocaleDateString('vi-VN')}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };

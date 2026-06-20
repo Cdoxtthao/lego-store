@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 
 namespace BaseCore.Entities
 {
@@ -26,6 +26,8 @@ namespace BaseCore.Entities
         public DbSet<StockBatch> StockBatches { get; set; }
         public DbSet<ReturnItem> ReturnItems { get; set; }
         public DbSet<Supplier> Suppliers { get; set; }
+        public DbSet<SupplierReceipt> SupplierReceipts { get; set; }
+        public DbSet<SupplierProposal> SupplierProposals { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -100,6 +102,50 @@ namespace BaseCore.Entities
                  .WithMany()
                  .HasForeignKey(r => r.ProductId)
                  .OnDelete(DeleteBehavior.Restrict);
+
+            // SupplierReceipt
+            modelBuilder.Entity<SupplierReceipt>()
+                .Property(r => r.UnitPrice)
+                .HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<SupplierReceipt>()
+                .Property(r => r.TotalAmount)
+                .HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<SupplierReceipt>()
+                .HasOne(r => r.Supplier)
+                .WithMany()
+                .HasForeignKey(r => r.SupplierId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<SupplierReceipt>()
+                .HasOne(r => r.Product)
+                .WithMany()
+                .HasForeignKey(r => r.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // SupplierProposal
+            modelBuilder.Entity<SupplierProposal>()
+                .Property(p => p.ProposedUnitPrice)
+                .HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<SupplierProposal>()
+                .HasOne(p => p.Supplier)
+                .WithMany()
+                .HasForeignKey(p => p.SupplierId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<SupplierProposal>()
+                .HasOne(p => p.Product)
+                .WithMany()
+                .HasForeignKey(p => p.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<SupplierProposal>()
+                .HasOne(p => p.Receipt)
+                .WithMany()
+                .HasForeignKey(p => p.ReceiptId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             foreach (var property in modelBuilder.Model.GetEntityTypes()
                 .SelectMany(t => t.GetProperties())

@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { productApi } from '../../api/productApi';
 import { ProductResponse, ProductSearchRequest } from '../../types';
 import { getImageUrl } from '../../utils/imageHelper';
 import axiosClient from '../../api/axiosClient';
 import imageCompression from 'browser-image-compression';
+import { useAuth } from '../../context/AuthContext';
 
 const AdminProducts = () => {
+  const { isSupplier } = useAuth();
+  const navigate = useNavigate();
   const [products, setProducts] = useState<ProductResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
@@ -52,17 +56,35 @@ const AdminProducts = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">Quản lý sản phẩm</h2>
-          <p className="text-sm text-gray-400 mt-0.5">Tổng {totalCount} sản phẩm</p>
+          <h2 className="text-xl font-bold text-gray-800">
+            {isSupplier ? 'Danh sách sản phẩm' : 'Quản lý sản phẩm'}
+          </h2>
+          <p className="text-sm text-gray-400 mt-0.5">
+            {isSupplier
+              ? `Tổng ${totalCount} sản phẩm · Xem để tạo đề nghị cung ứng`
+              : `Tổng ${totalCount} sản phẩm`}
+          </p>
         </div>
-        <button
-          onClick={() => { setEditProduct(null); setShowModal(true); }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-flower-100 text-white rounded-xl text-sm font-medium hover:bg-flower-150 transition">
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Thêm sản phẩm
-        </button>
+        {isSupplier ? (
+          <button
+            onClick={() => navigate('/admin/proposals')}
+            className="flex items-center gap-2 px-4 py-2.5 bg-flower-100 text-white rounded-xl text-sm font-medium hover:bg-flower-150 transition">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Tạo đề nghị cung ứng
+          </button>
+        ) : (
+          <button
+            onClick={() => { setEditProduct(null); setShowModal(true); }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-flower-100 text-white rounded-xl text-sm font-medium hover:bg-flower-150 transition">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Thêm sản phẩm
+          </button>
+        )}
       </div>
 
       {/* Search + Filter */}

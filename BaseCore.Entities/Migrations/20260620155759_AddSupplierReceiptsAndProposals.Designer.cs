@@ -4,6 +4,7 @@ using BaseCore.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BaseCore.Entities.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260620155759_AddSupplierReceiptsAndProposals")]
+    partial class AddSupplierReceiptsAndProposals
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -457,7 +460,7 @@ namespace BaseCore.Entities.Migrations
                             Description = "Tên website",
                             Group = "General",
                             Key = "SiteName",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 948, DateTimeKind.Utc).AddTicks(9745),
+                            UpdatedAt = new DateTime(2026, 6, 20, 15, 57, 58, 833, DateTimeKind.Utc).AddTicks(311),
                             Value = "BrickDo"
                         },
                         new
@@ -466,7 +469,7 @@ namespace BaseCore.Entities.Migrations
                             Description = "Email liên hệ",
                             Group = "General",
                             Key = "SiteEmail",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 949, DateTimeKind.Utc).AddTicks(1338),
+                            UpdatedAt = new DateTime(2026, 6, 20, 15, 57, 58, 833, DateTimeKind.Utc).AddTicks(2361),
                             Value = "support@brickdo.vn"
                         },
                         new
@@ -475,7 +478,7 @@ namespace BaseCore.Entities.Migrations
                             Description = "Số điện thoại",
                             Group = "General",
                             Key = "SitePhone",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 949, DateTimeKind.Utc).AddTicks(1340),
+                            UpdatedAt = new DateTime(2026, 6, 20, 15, 57, 58, 833, DateTimeKind.Utc).AddTicks(2364),
                             Value = "1900xxxx"
                         },
                         new
@@ -484,7 +487,7 @@ namespace BaseCore.Entities.Migrations
                             Description = "Địa chỉ",
                             Group = "General",
                             Key = "SiteAddress",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 949, DateTimeKind.Utc).AddTicks(1341),
+                            UpdatedAt = new DateTime(2026, 6, 20, 15, 57, 58, 833, DateTimeKind.Utc).AddTicks(2365),
                             Value = "123 Đường LEGO, TP.HCM"
                         },
                         new
@@ -493,7 +496,7 @@ namespace BaseCore.Entities.Migrations
                             Description = "Phí vận chuyển mặc định",
                             Group = "Shipping",
                             Key = "ShippingFee",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 949, DateTimeKind.Utc).AddTicks(1342),
+                            UpdatedAt = new DateTime(2026, 6, 20, 15, 57, 58, 833, DateTimeKind.Utc).AddTicks(2366),
                             Value = "30000"
                         },
                         new
@@ -502,7 +505,7 @@ namespace BaseCore.Entities.Migrations
                             Description = "Đơn tối thiểu miễn ship",
                             Group = "Shipping",
                             Key = "FreeShippingMin",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 949, DateTimeKind.Utc).AddTicks(1343),
+                            UpdatedAt = new DateTime(2026, 6, 20, 15, 57, 58, 833, DateTimeKind.Utc).AddTicks(2368),
                             Value = "500000"
                         },
                         new
@@ -511,7 +514,7 @@ namespace BaseCore.Entities.Migrations
                             Description = "Chế độ bảo trì",
                             Group = "System",
                             Key = "MaintenanceMode",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 949, DateTimeKind.Utc).AddTicks(1344),
+                            UpdatedAt = new DateTime(2026, 6, 20, 15, 57, 58, 833, DateTimeKind.Utc).AddTicks(2369),
                             Value = "false"
                         },
                         new
@@ -520,7 +523,7 @@ namespace BaseCore.Entities.Migrations
                             Description = "Số lượng tối đa mỗi đơn",
                             Group = "Order",
                             Key = "MaxOrderQuantity",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 949, DateTimeKind.Utc).AddTicks(1345),
+                            UpdatedAt = new DateTime(2026, 6, 20, 15, 57, 58, 833, DateTimeKind.Utc).AddTicks(2370),
                             Value = "10"
                         },
                         new
@@ -529,7 +532,7 @@ namespace BaseCore.Entities.Migrations
                             Description = "Cho phép đánh giá",
                             Group = "Product",
                             Key = "AllowReviews",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 949, DateTimeKind.Utc).AddTicks(1346),
+                            UpdatedAt = new DateTime(2026, 6, 20, 15, 57, 58, 833, DateTimeKind.Utc).AddTicks(2370),
                             Value = "true"
                         },
                         new
@@ -538,7 +541,7 @@ namespace BaseCore.Entities.Migrations
                             Description = "Điểm thưởng mỗi đơn",
                             Group = "Loyalty",
                             Key = "PointsPerOrder",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 949, DateTimeKind.Utc).AddTicks(1347),
+                            UpdatedAt = new DateTime(2026, 6, 20, 15, 57, 58, 833, DateTimeKind.Utc).AddTicks(2371),
                             Value = "100"
                         });
                 });

@@ -31,6 +31,8 @@ import AdminPromotions from './pages/admin/AdminPromotions';
 import AdminStock from './pages/admin/AdminStock';
 import AdminReturns from './pages/admin/AdminReturns';
 import AdminSuppliers from './pages/admin/AdminSuppliers';
+import SupplierReceipts from './pages/admin/SupplierReceipts';
+import SupplierProposals from './pages/admin/SupplierProposals';
 
 // Route chỉ cho Admin/Seller/Supplier
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
@@ -112,6 +114,8 @@ function AppRoutes() {
             <Route path="stock" element={<AdminStock />} />
             <Route path="returns" element={<AdminReturns />} />
             <Route path="suppliers" element={<AdminSuppliers />} />
+            <Route path="receipts" element={<SupplierReceipts />} />
+            <Route path="proposals" element={<SupplierProposals />} />
           </Route>
           {/* 404 */}
           <Route path="*" element={<Navigate to="/" />} />

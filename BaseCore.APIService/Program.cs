@@ -1,4 +1,4 @@
-﻿using BaseCore.Entities;
+using BaseCore.Entities;
 using BaseCore.Repository.Implementations;
 using BaseCore.Repository.Interfaces;
 using BaseCore.Services.Implementations;
@@ -13,17 +13,22 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ===================== DATABASE =====================
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        sqlOptions => {
-            sqlOptions.CommandTimeout(120);
-            sqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 3,
-                maxRetryDelay: TimeSpan.FromSeconds(5),
-                errorNumbersToAdd: null
-            );
-        }
-));
+    options
+        .UseSqlServer(
+            builder.Configuration.GetConnectionString("DefaultConnection"),
+            sqlOptions => {
+                sqlOptions.CommandTimeout(120);
+                sqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 3,
+                    maxRetryDelay: TimeSpan.FromSeconds(5),
+                    errorNumbersToAdd: null
+                );
+            }
+        )
+        .ConfigureWarnings(w =>
+            w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning))
+);
+
 
 // ===================== REPOSITORY =====================
 // Đăng ký từng cặp Interface → Implementation
