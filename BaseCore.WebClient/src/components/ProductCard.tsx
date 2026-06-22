@@ -113,9 +113,9 @@ const ProductCard = ({ product }: Props) => {
           )}
         </div>
 
-        {/* Số mảnh */}
-        {product.pieceCount && (
-          <p className="text-xs text-gray-400 mt-1">{product.pieceCount} mảnh</p>
+        {/* Đặc điểm nổi bật */}
+        {product.highlights && (
+          <p className="text-xs text-gray-400 mt-1 line-clamp-1">{product.highlights}</p>
         )}
 
         {/* Nút thêm giỏ */}

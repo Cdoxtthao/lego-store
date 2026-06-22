@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { productApi } from '../../api/productApi';
 import { ProductResponse, ProductSearchRequest } from '../../types';
@@ -6,6 +6,8 @@ import { getImageUrl } from '../../utils/imageHelper';
 import axiosClient from '../../api/axiosClient';
 import imageCompression from 'browser-image-compression';
 import { useAuth } from '../../context/AuthContext';
+import { categoryApi, CategoryResponse } from '../../api/categoryApi';
+import { themeApi, ThemeResponse } from '../../api/themeApi';
 
 const AdminProducts = () => {
   const { isSupplier } = useAuth();
@@ -18,6 +20,15 @@ const AdminProducts = () => {
   const [editProduct, setEditProduct] = useState<ProductResponse | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [search, setSearch] = useState('');
+  // Filter dropdowns
+  const [filterCategories, setFilterCategories] = useState<CategoryResponse[]>([]);
+  const [filterThemes, setFilterThemes] = useState<ThemeResponse[]>([]);
+  const [filterCatId, setFilterCatId] = useState<number | ''>('');
+  const [filterThemeId, setFilterThemeId] = useState<number | ''>('');
+
+  useEffect(() => {
+    categoryApi.getAll().then(setFilterCategories).catch(() => {});
+  }, []);
 
   useEffect(() => { fetchProducts(); }, [filters]);
 
@@ -41,6 +52,21 @@ const AdminProducts = () => {
   const handleSearch = (e: React.SyntheticEvent) => {
     e.preventDefault();
     setFilters({ ...filters, keyword: search, page: 1 });
+  };
+
+  const handleCategoryFilter = (catId: number | '') => {
+    setFilterCatId(catId);
+    setFilterThemeId('');
+    setFilterThemes([]);
+    setFilters(f => ({ ...f, categoryId: catId || undefined, themeId: undefined, page: 1 }));
+    if (catId) {
+      themeApi.getAll(catId as number).then(setFilterThemes).catch(() => {});
+    }
+  };
+
+  const handleThemeFilter = (themeId: number | '') => {
+    setFilterThemeId(themeId);
+    setFilters(f => ({ ...f, themeId: themeId || undefined, page: 1 }));
   };
 
   const handleDelete = async (id: number) => {
@@ -89,8 +115,8 @@ const AdminProducts = () => {
 
       {/* Search + Filter */}
       <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-4">
-        <form onSubmit={handleSearch} className="flex gap-3">
-          <div className="relative flex-1">
+        <form onSubmit={handleSearch} className="flex gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-48">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
               fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -109,6 +135,28 @@ const AdminProducts = () => {
               className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-flower-100"
             />
           </div>
+          {/* Danh mục filter */}
+          <select
+            value={filterCatId}
+            onChange={(e) => handleCategoryFilter(e.target.value ? Number(e.target.value) : '')}
+            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-flower-100">
+            <option value="">Tất cả danh mục</option>
+            {filterCategories.map(cat => (
+              <option key={cat.id} value={cat.id}>{cat.name}</option>
+            ))}
+          </select>
+          {/* Chủ đề filter */}
+          <select
+            value={filterThemeId}
+            onChange={(e) => handleThemeFilter(e.target.value ? Number(e.target.value) : '')}
+            disabled={!filterCatId}
+            className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-flower-100 disabled:opacity-50 disabled:cursor-not-allowed">
+            <option value="">{filterCatId ? 'Tất cả chủ đề' : 'Chọn danh mục trước'}</option>
+            {filterThemes.map(t => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+          {/* Sắp xếp */}
           <select
             value={filters.sortBy || ''}
             onChange={(e) => setFilters({ ...filters, sortBy: e.target.value || undefined, page: 1 })}
@@ -132,6 +180,7 @@ const AdminProducts = () => {
             <tr className="border-b border-gray-100 bg-gray-50">
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Sản phẩm</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Danh mục</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Chủ đề</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Giá</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tồn kho</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nổi bật</th>
@@ -142,14 +191,14 @@ const AdminProducts = () => {
             {loading ? (
               [...Array(5)].map((_, i) => (
                 <tr key={i}>
-                  <td colSpan={6} className="px-4 py-3">
+                  <td colSpan={7} className="px-4 py-3">
                     <div className="h-12 bg-gray-100 rounded-xl animate-pulse" />
                   </td>
                 </tr>
               ))
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-12 text-gray-400">
+                <td colSpan={7} className="text-center py-12 text-gray-400">
                   <span className="text-4xl block mb-2">📦</span>
                   Không có sản phẩm nào
                 </td>
@@ -180,8 +229,15 @@ const AdminProducts = () => {
 
                   {/* Danh mục */}
                   <td className="px-4 py-3">
+                    <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-full font-medium">
+                      {product.categoryName || '—'}
+                    </span>
+                  </td>
+
+                  {/* Chủ đề */}
+                  <td className="px-4 py-3">
                     <span className="text-xs bg-flower-50 text-flower-100 px-2 py-1 rounded-full font-medium">
-                      {product.categoryName || product.theme}
+                      {product.theme || '—'}
                     </span>
                   </td>
 
@@ -325,6 +381,18 @@ const AdminProducts = () => {
   );
 };
 
+// ========== FIELD HELPER (must be outside ProductModal to avoid focus loss) ==========
+const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-flower-100";
+
+const Field = ({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) => (
+  <div>
+    <label className="block text-xs font-medium text-gray-600 mb-1">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    {children}
+  </div>
+);
+
 // ========== PRODUCT MODAL ==========
 const ProductModal = ({
   product,
@@ -338,14 +406,14 @@ const ProductModal = ({
   const [form, setForm] = useState({
     name: product?.name || '',
     description: product?.description || '',
-    price: product?.price || 0,
-    oldPrice: product?.oldPrice || '',
-    stockQuantity: product?.stockQuantity || 0,
+    price: product?.price != null ? String(product.price) : '',
+    oldPrice: product?.oldPrice != null ? String(product.oldPrice) : '',
+    stockQuantity: product?.stockQuantity != null ? String(product.stockQuantity) : '',
     imageUrl: product?.imageUrl || '',
-    categoryId: 1,
-    theme: product?.theme || '',
+    categoryId: product?.categoryId || 0,
+    themeId: product?.themeId || 0,
     ageRange: product?.ageRange || '',
-    pieceCount: product?.pieceCount || '',
+    highlights: product?.highlights || '',
     setNumber: product?.setNumber || '',
     isFeatured: product?.isFeatured || false,
   });
@@ -356,9 +424,32 @@ const ProductModal = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [extraImages, setExtraImages] = useState<string[]>(
-    product?.images?.map(img => img.imageUrl) || []
+    product?.images
+      ?.map(img => img.imageUrl)
+      .filter(url => url !== product?.imageUrl) || []
   );
   const [uploadingExtra, setUploadingExtra] = useState(false);
+  const [dbCategories, setDbCategories] = useState<CategoryResponse[]>([]);
+  const [dbThemes, setDbThemes] = useState<ThemeResponse[]>([]);
+
+  // Ref để luôn đọc giá trị form state mới nhất trong các async upload handler (tránh stale closure)
+  const formRef = useRef(form);
+  useEffect(() => {
+    formRef.current = form;
+  }, [form]);
+
+  useEffect(() => {
+    categoryApi.getAll().then(setDbCategories).catch(() => {});
+  }, []);
+
+  // Load themes when category changes
+  useEffect(() => {
+    if (form.categoryId) {
+      themeApi.getAll(form.categoryId).then(setDbThemes).catch(() => {});
+    } else {
+      setDbThemes([]);
+    }
+  }, [form.categoryId]);
 
   const compressAndUpload = async (file: File): Promise<string> => {
     const compressed = await imageCompression(file, {
@@ -384,10 +475,24 @@ const ProductModal = ({
     try {
       const uploaded: string[] = [];
       for (const file of files) {
-        const url = await compressAndUpload(file); // ← dùng helper
+        const url = await compressAndUpload(file);
         uploaded.push(url);
       }
-      setExtraImages(prev => [...prev, ...uploaded]);
+
+      // Đọc imageUrl mới nhất từ ref để tránh stale closure
+      const currentImageUrl = formRef.current.imageUrl;
+
+      // Kiểm tra xem đã có ảnh chính chưa
+      if (!currentImageUrl && uploaded.length > 0) {
+        // Chưa có ảnh chính → ảnh đầu tiên thành ảnh chính
+        const [first, ...rest] = uploaded;
+        setPreviewImage(`https://localhost:7175${first}`);
+        setForm(prev => ({ ...prev, imageUrl: first }));
+        setExtraImages(prev => [...prev, ...rest]);
+      } else {
+        // Đã có ảnh chính → thêm tất cả vào extra
+        setExtraImages(prev => [...prev, ...uploaded]);
+      }
     } catch {
       setError('Upload ảnh thất bại');
     } finally {
@@ -400,9 +505,18 @@ const ProductModal = ({
     setExtraImages(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Swap: ảnh extra được chọn → ảnh chính; ảnh chính cũ → về extra
   const handleSetMainImage = (url: string) => {
-    setForm(prev => ({ ...prev, imageUrl: url }));
-    setPreviewImage(`https://localhost:7175${url}`);
+    setForm(prev => {
+      const oldMain = prev.imageUrl;
+      // Đưa ảnh chính cũ vào extra (nếu có), xóa ảnh được chọn khỏi extra
+      setExtraImages(prevExtra => {
+        const withoutSelected = prevExtra.filter(img => img !== url);
+        return oldMain ? [oldMain, ...withoutSelected] : withoutSelected;
+      });
+      return { ...prev, imageUrl: url };
+    });
+    setPreviewImage(url.startsWith('http') ? url : `https://localhost:7175${url}`);
   };
 
   const handleSave = async () => {
@@ -410,38 +524,46 @@ const ProductModal = ({
       setError('Vui lòng điền đầy đủ thông tin bắt buộc');
       return;
     }
+    const allImages = form.imageUrl
+      ? [form.imageUrl, ...extraImages.filter(img => img !== form.imageUrl)]
+      : extraImages;
+
     setSaving(true);
     try {
+      const selectedTheme = dbThemes.find(t => t.id === form.themeId);
       if (product) {
         await productApi.update(product.id, {
           name: form.name,
           description: form.description,
           price: Number(form.price),
-          oldPrice: form.oldPrice ? Number(form.oldPrice) : undefined,
+          oldPrice: form.oldPrice !== '' ? Number(form.oldPrice) : undefined,
           stockQuantity: Number(form.stockQuantity),
           imageUrl: form.imageUrl,
-          theme: form.theme,
+          categoryId: form.categoryId || undefined,
+          themeId: form.themeId || undefined,
+          theme: selectedTheme?.name,
           ageRange: form.ageRange,
-          pieceCount: form.pieceCount ? Number(form.pieceCount) : undefined,
+          highlights: form.highlights,
           setNumber: form.setNumber,
           isFeatured: form.isFeatured,
-          images: extraImages,
+          images: allImages,
         });
       } else {
         await productApi.create({
           name: form.name,
           description: form.description,
           price: Number(form.price),
-          oldPrice: form.oldPrice ? Number(form.oldPrice) : undefined,
+          oldPrice: form.oldPrice !== '' ? Number(form.oldPrice) : undefined,
           stockQuantity: Number(form.stockQuantity),
           imageUrl: form.imageUrl,
           categoryId: form.categoryId,
-          theme: form.theme,
+          themeId: form.themeId || undefined,
+          theme: selectedTheme?.name,
           ageRange: form.ageRange,
-          pieceCount: form.pieceCount ? Number(form.pieceCount) : undefined,
+          highlights: form.highlights,
           setNumber: form.setNumber,
           isFeatured: form.isFeatured,
-          images: extraImages,
+          images: allImages,
         });
       }
       onSaved();
@@ -463,25 +585,29 @@ const ProductModal = ({
 
     setUploading(true);
     try {
-      const url = await compressAndUpload(file); // ← dùng helper
-      setForm({ ...form, imageUrl: url });
+      const url = await compressAndUpload(file);
+      // Đọc imageUrl hiện tại và chuyển thành ảnh phụ nếu có
+      setForm(prev => {
+        const oldMain = prev.imageUrl;
+        if (oldMain && oldMain !== url) {
+          setExtraImages(prevExtra => {
+            if (!prevExtra.includes(oldMain)) {
+              return [oldMain, ...prevExtra];
+            }
+            return prevExtra;
+          });
+        }
+        return { ...prev, imageUrl: url };
+      });
+      setPreviewImage(`https://localhost:7175${url}`);
     } catch {
       setError('Upload ảnh thất bại');
     } finally {
       setUploading(false);
+      e.target.value = ''; // reset input để có thể chọn lại cùng file
     }
   };
 
-  const Field = ({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) => (
-    <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      {children}
-    </div>
-  );
-
-  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-flower-100";
 
   return (
     <div 
@@ -519,20 +645,20 @@ const ProductModal = ({
             </div>
 
             <Field label="Giá bán" required>
-              <input type="number" value={form.price}
-                onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
+              <input type="text" inputMode="numeric" value={form.price}
+                onChange={(e) => setForm({ ...form, price: e.target.value })}
                 className={inputClass} placeholder="0" />
             </Field>
 
             <Field label="Giá gốc (nếu có)">
-              <input type="number" value={form.oldPrice}
+              <input type="text" inputMode="numeric" value={form.oldPrice}
                 onChange={(e) => setForm({ ...form, oldPrice: e.target.value })}
                 className={inputClass} placeholder="0" />
             </Field>
 
             <Field label="Tồn kho" required>
-              <input type="number" value={form.stockQuantity}
-                onChange={(e) => setForm({ ...form, stockQuantity: Number(e.target.value) })}
+              <input type="text" inputMode="numeric" value={form.stockQuantity}
+                onChange={(e) => setForm({ ...form, stockQuantity: e.target.value })}
                 className={inputClass} placeholder="0" />
             </Field>
 
@@ -542,10 +668,31 @@ const ProductModal = ({
                 className={inputClass} placeholder="VD: 75382" />
             </Field>
 
+            <Field label="Danh mục" required>
+              <select
+                value={form.categoryId}
+                onChange={(e) => {
+                  setForm({ ...form, categoryId: Number(e.target.value), themeId: 0 });
+                }}
+                className={inputClass}>
+                <option value={0}>-- Chọn danh mục --</option>
+                {dbCategories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </Field>
+
             <Field label="Chủ đề">
-              <input type="text" value={form.theme}
-                onChange={(e) => setForm({ ...form, theme: e.target.value })}
-                className={inputClass} placeholder="VD: Star Wars" />
+              <select
+                value={form.themeId}
+                onChange={(e) => setForm({ ...form, themeId: Number(e.target.value) })}
+                disabled={!form.categoryId}
+                className={`${inputClass} disabled:opacity-50 disabled:cursor-not-allowed`}>
+                <option value={0}>{form.categoryId ? '-- Chọn chủ đề --' : 'Chọn danh mục trước'}</option>
+                {dbThemes.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
             </Field>
 
             <Field label="Độ tuổi">
@@ -559,11 +706,14 @@ const ProductModal = ({
               </select>
             </Field>
 
-            <Field label="Số mảnh">
-              <input type="number" value={form.pieceCount}
-                onChange={(e) => setForm({ ...form, pieceCount: e.target.value })}
-                className={inputClass} placeholder="0" />
-            </Field>
+            <div className="col-span-2">
+              <Field label="Mô tả">
+                <textarea value={form.highlights}
+                  onChange={(e) => setForm({ ...form, highlights: e.target.value })}
+                  rows={2} maxLength={300} className={inputClass}
+                  placeholder="VD: Robot có thể cử động tay, đi kèm minifigure và vũ khí đặc trưng..." />
+              </Field>
+            </div>
 
       {/* Upload ảnh */}
         <div className="col-span-2">
@@ -763,7 +913,7 @@ const ProductModal = ({
 </div>
 
             <div className="col-span-2">
-              <Field label="Mô tả">
+              <Field label="Mô tả chi tiết">
                 <textarea value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   rows={3} className={inputClass} placeholder="Mô tả sản phẩm..." />

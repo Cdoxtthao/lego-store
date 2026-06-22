@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { productApi } from '../api/productApi';
+import { categoryApi, CategoryResponse } from '../api/categoryApi';
 import { ProductResponse } from '../types';
 import ProductCard from '../components/ProductCard';
 import { getImageUrl } from '../utils/imageHelper';
@@ -141,53 +142,77 @@ function getBgColor(bgClass: string): string {
   return 'white';
 }
 // ========== DANH MỤC NỔI BẬT ==========
-const featuredCategories = [
-  { name: 'Thể thao', emoji: '⚽', theme: 'Sports', image: '/images/products/Messi-1.png', tag: 'Slay' },
-  { name: 'Monkie Kid', emoji: '🐒', theme: 'Monkie+Kid', image: '/images/products/Monkey-King-Ultra-Mech-1.png', tag: 'Epic' },
-  { name: 'Pokemon', emoji: '⚡', theme: 'Pokemon', image: '/images/products/Pikachu-1.png', tag: 'Cute' },
-  { name: 'Technic', emoji: '⚙️', theme: 'Technic', image: '/images/products/Bugatti-Centodieci-1.png', tag: 'Power' },
-];
+// Danh mục được lấy thật từ Backend (GET /api/categories) — không hardcode tên danh mục.
+// Ảnh đại diện vẫn chọn cứng trong code (ảnh của một sản phẩm bất kỳ thuộc danh mục đó),
+// vì Category.ImageUrl trong DB hiện chưa có file ảnh thật tương ứng.
+const categoryImageMap: Record<string, string> = {
+  'Star Wars': '/images/products/TIE-Interceptor-1.png',
+  'Technic': '/images/products/Bugatti-Centodieci-1.png',
+  'One Piece': '/images/products/Baratie-Restaurant-1.png',
+  'Pokemon': '/images/products/Venusaur-Charizard-Blastoise-1.png',
+  'Ninjago': '/images/products/The-Temple-Bounty-1.png',
+  'Harry Potter': '/images/products/Dumbledores-Office-1.png',
+  'Icons': '/images/products/Grand-Piano-1.png',
+  'Super Mario': '/images/products/Mario-Kart-1.png',
+  'Disney': '/images/products/Pua-1.png',
+  'Jurassic World': '/images/products/T-Rex-1.png',
+  'Sports': '/images/products/Messi-1.png',
+  'Botanicals': '/images/products/Black-Dahlia-Flower-1.png',
+  'Ideas': '/images/products/Great-Deku-Tree-1.png',
+  'Creator': '/images/products/Celestial-Pagoda-1.png',
+};
 
-const CategorySection = () => (
-  <section className="max-w-7xl mx-auto px-6 py-12">
-    <h1 className="text-4xl font-bold text-gray-800 mb-6 text-center">Danh Mục HOT</h1>
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      {featuredCategories.map((cat) => (
-        <Link key={cat.name} to={`/products?theme=${cat.theme}`}
-          className="relative rounded-2xl overflow-hidden group cursor-pointer"
-          style={{ aspectRatio: '3/4' }}>
+const CategorySection = ({ categories }: { categories: CategoryResponse[] }) => {
+  if (categories.length === 0) return null;
 
-          {/* Ảnh nền */}
-          <img
-            src={`https://localhost:7175${cat.image}`}
-            alt={cat.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-          />
+  return (
+    <section className="max-w-7xl mx-auto px-6 py-12">
+      <h1 className="text-4xl font-bold text-gray-800 mb-6 text-center">Danh Mục HOT</h1>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
+        {categories.map((cat) => {
+          const image = categoryImageMap[cat.name];
+          return (
+            <Link key={cat.id} to={`/products?categoryId=${cat.id}`}
+              className="relative rounded-2xl overflow-hidden group cursor-pointer bg-flower-50"
+              style={{ aspectRatio: '3/4' }}>
 
-          {/* Overlay gradient */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+              {/* Ảnh nền */}
+              {image ? (
+                <img
+                  src={getImageUrl(image)}
+                  alt={cat.name}
+                  className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-5xl">🧱</div>
+              )}
 
-          {/* Tag góc trên */}
-          <span className="absolute top-3 left-3 bg-flower-100 text-white text-xs font-bold px-3 py-1 rounded-full">
-            {cat.tag}
-          </span>
+              {/* Overlay gradient */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
 
-          {/* Nút mũi tên góc dưới phải */}
-          <div className="absolute bottom-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md group-hover:bg-flower-100 group-hover:text-white transition">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </div>
+              {/* Số lượng sản phẩm — góc trên */}
+              <span className="absolute top-3 left-3 bg-flower-100 text-white text-xs font-bold px-3 py-1 rounded-full">
+                {cat.productCount} sản phẩm
+              </span>
 
-          {/* Tên danh mục dưới cùng */}
-          <div className="absolute bottom-3 left-3 text-white font-bold text-lg">
-            {cat.name}
-          </div>
-        </Link>
-      ))}
-    </div>
-  </section>
-);
+              {/* Nút mũi tên góc dưới phải */}
+              <div className="absolute bottom-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md group-hover:bg-flower-100 group-hover:text-white transition">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+
+              {/* Tên danh mục dưới cùng */}
+              <div className="absolute bottom-3 left-3 right-12 text-white font-bold text-lg truncate">
+                {cat.name}
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+};
 
 // ========== PROMO BANNER + SẢN PHẨM  ==========
 const ProductSection = ({
@@ -506,18 +531,21 @@ const HomePage = () => {
   const [newest, setNewest] = useState<ProductResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [bestSeller, setBestSeller] = useState<ProductResponse[]>([]);
+  const [categories, setCategories] = useState<CategoryResponse[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [featuredRes, newestRes, bestSellerRes] = await Promise.all([
+        const [featuredRes, newestRes, bestSellerRes, categoriesRes] = await Promise.all([
           productApi.getFeatured(8),
           productApi.getAll({ sortBy: 'newest', pageSize: 8, page: 1 }),
-          productApi.getAll({ isFeatured: true, pageSize: 12, page: 1 }), // best seller
+          productApi.getAll({ sortBy: 'bestseller', pageSize: 12, page: 1 }), // bán chạy nhất — tính theo đơn hàng thực tế ở Backend
+          categoryApi.getAll(), // danh mục thật của shop, kèm số lượng sản phẩm mỗi danh mục
         ]);
         setFeatured(featuredRes);
         setNewest(newestRes.items);
         setBestSeller(bestSellerRes.items);
+        setCategories(categoriesRes);
       } catch (err) {
         console.error(err);
       } finally {
@@ -530,12 +558,12 @@ const HomePage = () => {
   return (
     <div className="bg-white min-h-screen">
       <HeroBanner />
-      <CategorySection />
+      <CategorySection categories={categories} />
 
       {!loading && bestSeller.length > 0 && (
         <ProductSection
           title="Sản Phẩm Bán Chạy Nhất"
-          link="/products?isFeatured=true"
+          link="/products?sortBy=bestseller"
           products={bestSeller}
           bannerImage="/images/banners/3.webp"
           bannerBg="from-yellow-300 to-orange-400"

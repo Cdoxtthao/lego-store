@@ -1,4 +1,4 @@
-﻿namespace BaseCore.Entities
+namespace BaseCore.Entities
 {
     public class Category
     {
@@ -9,7 +9,9 @@
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        // Navigation property — EF Core dùng để JOIN bảng
+        // Navigation properties — EF Core dùng để JOIN bảng
         public ICollection<Product> Products { get; set; } = new List<Product>();
+        // Một Category có thể có nhiều Theme (quan hệ nhiều-nhiều qua CategoryTheme)
+        public ICollection<CategoryTheme> CategoryThemes { get; set; } = new List<CategoryTheme>();
     }
 }

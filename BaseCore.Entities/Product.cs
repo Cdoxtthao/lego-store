@@ -1,4 +1,4 @@
-﻿namespace BaseCore.Entities
+namespace BaseCore.Entities
 {
     public class Product
     {
@@ -10,9 +10,10 @@
         public int StockQuantity { get; set; } = 0;
         public string? ImageUrl { get; set; }
         public int CategoryId { get; set; }
-        public string? Theme { get; set; }
+        public string? Theme { get; set; }   // Tên chủ đề (legacy / cache)
+        public int? ThemeId { get; set; }    // FK tới bảng Themes
         public string? AgeRange { get; set; }
-        public int? PieceCount { get; set; }
+        public string? Highlights { get; set; }   // Đặc điểm nổi bật của sản phẩm
         public string? SetNumber { get; set; }
         public bool IsActive { get; set; } = true;
         public bool IsFeatured { get; set; } = false;
@@ -22,6 +23,7 @@
 
         // Navigation properties
         public Category Category { get; set; } = null!;
+        public Theme? ThemeNav { get; set; }
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
         public ICollection<CartItem> CartItems { get; set; } = new List<CartItem>();
         public ICollection<Review> Reviews { get; set; } = new List<Review>();

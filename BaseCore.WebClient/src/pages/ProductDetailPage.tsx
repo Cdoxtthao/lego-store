@@ -500,21 +500,26 @@ const ProductDetailPage = () => {
               )}
             </div>
 
-            {/* Mô tả ngắn */}
+            {/* Mô tả sản phẩm — lấy từ mô tả đã nhập khi quản lý sản phẩm ở Admin */}
             {product.description && (
-              <p className="text-gray-600 leading-relaxed mb-6">
-                {product.description}
-              </p>
+              <div className="mb-6">
+                <p className="text-sm font-semibold text-gray-700 mb-1">📝 Mô tả chi tiết</p>
+                <p className="text-gray-600 leading-relaxed">
+                  {product.description}
+                </p>
+              </div>
+            )}
+
+            {/* Đặc điểm nổi bật */}
+            {product.highlights && (
+              <div className="bg-flower-50 border border-flower-100/20 rounded-xl p-4 mb-6">
+                <p className="text-sm font-semibold text-flower-100 mb-1">✨ Mô tả</p>
+                <p className="text-sm text-gray-600 leading-relaxed">{product.highlights}</p>
+              </div>
             )}
 
             {/* Thông tin nhanh */}
-            <div className="grid grid-cols-3 gap-3 mb-6">
-              {product.pieceCount && (
-                <div className="bg-flower-50 rounded-xl p-3 text-center">
-                  <p className="text-2xl font-bold text-flower-100">{product.pieceCount}</p>
-                  <p className="text-xs text-gray-500 mt-1">Mảnh ghép</p>
-                </div>
-              )}
+            <div className="grid grid-cols-2 gap-3 mb-6">
               {product.ageRange && (
                 <div className="bg-flower-50 rounded-xl p-3 text-center">
                   <p className="text-2xl font-bold text-flower-100">{product.ageRange}</p>
@@ -611,7 +616,7 @@ const ProductDetailPage = () => {
             <div className="border border-gray-100 rounded-xl p-4 space-y-3">
               {[
                 { icon: '🚚', text: 'Miễn phí vận chuyển cho đơn từ 5.000.000đ' },
-                { icon: '✅', text: 'Hàng chính hãng LEGO 100%' },
+                { icon: '✅', text: 'Hàng chính hãng 100%' },
                 { icon: '🔄', text: 'Đổi trả trong 30 ngày' },
                 { icon: '🎁', text: 'Đóng gói quà tặng miễn phí' },
               ].map(item => (
@@ -632,9 +637,7 @@ const ProductDetailPage = () => {
             {[
               { label: 'Tên sản phẩm', value: product.name },
               { label: 'Mã set', value: product.setNumber },
-              { label: 'Chủ đề', value: product.theme },
-              { label: 'Danh mục', value: product.categoryName },
-              { label: 'Số mảnh', value: product.pieceCount ? `${product.pieceCount} mảnh` : null },
+              { label: 'Chủ đề', value: product.categoryName || product.theme },
               { label: 'Độ tuổi', value: product.ageRange },
             ].filter(item => item.value).map(item => (
               <div key={item.label}

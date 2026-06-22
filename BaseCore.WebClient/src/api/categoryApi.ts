@@ -6,6 +6,7 @@ export interface CategoryResponse {
   description?: string;
   imageUrl?: string;
   productCount: number;
+  themeCount: number;
 }
 
 export const categoryApi = {

@@ -33,7 +33,7 @@ VALUES
 -- ---- SẢN PHẨM 1: Monkey King Ultra Mech ----
 DECLARE @ProductId INT;
 
-INSERT INTO Products (Name, Description, Price, OldPrice, StockQuantity, CategoryId, Theme, AgeRange, PieceCount, SetNumber, IsActive, IsFeatured)
+INSERT INTO Products (Name, Description, Price, OldPrice, StockQuantity, CategoryId, Theme, AgeRange, Highlights, SetNumber, IsActive, IsFeatured)
 VALUES (
     'Monkey King Ultra Mech',
     'Bộ LEGO Monkie Kid với siêu robot Monkey King huyền thoại',
@@ -43,7 +43,7 @@ VALUES (
     (SELECT Id FROM Categories WHERE Name = 'Monkie Kid'),
     'Monkie Kid',
     '8+',
-    1170,
+    N'Robot Khỉ Vương có cánh tay vươn dài và xoay được, đi kèm minifigure Tôn Ngộ Không cùng Gậy Như Ý phát sáng',
     '80048',
     1,
     1  -- IsFeatured = true
@@ -59,7 +59,7 @@ INSERT INTO ProductImages (ProductId, ImageUrl, IsMain, SortOrder) VALUES
 (@ProductId, '/images/products/Monkey-King-Ultra-Me-5.png', 0, 5);
 
 -- ---- SẢN PHẨM 2: Mythical Creature Qilin ----
-INSERT INTO Products (Name, Description, Price, OldPrice, StockQuantity, CategoryId, Theme, AgeRange, PieceCount, SetNumber, IsActive, IsFeatured)
+INSERT INTO Products (Name, Description, Price, OldPrice, StockQuantity, CategoryId, Theme, AgeRange, Highlights, SetNumber, IsActive, IsFeatured)
 VALUES (
     'Mythical Creature Qilin',
     'Sinh vật thần thoại Kỳ Lân huyền bí từ bộ sưu tập Icons',
@@ -69,7 +69,7 @@ VALUES (
     (SELECT Id FROM Categories WHERE Name = 'Icons'),
     'Icons',
     '10+',
-    830,
+    N'Mô hình sinh vật thần thoại Kỳ Lân tạo hình uốn lượn sống động, có đế trưng bày kèm bảng tên, thuộc dòng sưu tập Icons',
     '10424',
     1,
     0
@@ -85,7 +85,7 @@ INSERT INTO ProductImages (ProductId, ImageUrl, IsMain, SortOrder) VALUES
 (@ProductId, '/images/products/Mythical-Creature-Qilin-5.png', 0, 5);
 
 -- ---- SẢN PHẨM 3: Erlang's Celestial Mech ----
-INSERT INTO Products (Name, Description, Price, OldPrice, StockQuantity, CategoryId, Theme, AgeRange, PieceCount, SetNumber, IsActive, IsFeatured)
+INSERT INTO Products (Name, Description, Price, OldPrice, StockQuantity, CategoryId, Theme, AgeRange, Highlights, SetNumber, IsActive, IsFeatured)
 VALUES (
     'Erlang''s Celestial Mech',  -- dấu '' để escape dấu nháy đơn
     'Robot thiên đình của Nhị Lang Thần trong bộ Monkie Kid',
@@ -95,7 +95,7 @@ VALUES (
     (SELECT Id FROM Categories WHERE Name = 'Monkie Kid'),
     'Monkie Kid',
     '8+',
-    990,
+    N'Robot thiên giới của Nhị Lang Thần có khớp cử động linh hoạt, trang bị Tam Diện Thần Khí và minifigure Hao Thiên Khuyển',
     '80053',
     1,
     1
@@ -111,7 +111,7 @@ INSERT INTO ProductImages (ProductId, ImageUrl, IsMain, SortOrder) VALUES
 -- Sản phẩm này chỉ có 4 ảnh
 
 -- ---- SẢN PHẨM 4: Celestial Pagoda ----
-INSERT INTO Products (Name, Description, Price, OldPrice, StockQuantity, CategoryId, Theme, AgeRange, PieceCount, SetNumber, IsActive, IsFeatured)
+INSERT INTO Products (Name, Description, Price, OldPrice, StockQuantity, CategoryId, Theme, AgeRange, Highlights, SetNumber, IsActive, IsFeatured)
 VALUES (
     'Celestial Pagoda',
     'Tháp thiên đình tráng lệ từ bộ Monkie Kid',
@@ -121,7 +121,7 @@ VALUES (
     (SELECT Id FROM Categories WHERE Name = 'Monkie Kid'),
     'Monkie Kid',
     '14+',
-    2270,
+    N'Tháp thiên đình nhiều tầng có thể mở để lộ nội thất chi tiết, đi kèm khu vực chiến đấu và dàn nhân vật Monkie Kid',
     '80058',
     1,
     1

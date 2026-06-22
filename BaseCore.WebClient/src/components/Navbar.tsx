@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { productApi } from '../api/productApi';
 import { ProductResponse } from '../types';
-import { categories } from '../data/categories';
+import { categoryApi, CategoryResponse } from '../api/categoryApi';
+import { themeApi, ThemeResponse } from '../api/themeApi';
 import { CartResponse } from '../types';
 import { cartApi } from '../api/cartApi';
 import { getImageUrl } from '../utils/imageHelper';
@@ -271,19 +272,59 @@ const ChatBox = ({ onClose }: { onClose: () => void }) => {
 };
 
 // ====================== PRODUCT DROPDOWN ===================================
+// Backend là nguồn quyết định toàn bộ: danh sách danh mục, danh mục nào có chủ đề
+// (qua themeCount), chủ đề thuộc danh mục nào (qua categoryId), và sản phẩm theo
+// categoryId/themeId. Frontend ở đây chỉ hiển thị theo dữ liệu nhận được.
 const ProductDropdown = ({ onClose }: { onClose: () => void }) => {
-  const [hoveredCategory, setHoveredCategory] = useState(categories[0]);
+  const [categories, setCategories] = useState<CategoryResponse[]>([]);
+  const [hoveredCategory, setHoveredCategory] = useState<CategoryResponse | null>(null);
+  const [themes, setThemes] = useState<ThemeResponse[]>([]);
+  const [loadingThemes, setLoadingThemes] = useState(false);
+  const [hoveredTheme, setHoveredTheme] = useState<ThemeResponse | null>(null);
   const [products, setProducts] = useState<ProductResponse[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const navigate = useNavigate();
 
-  // Fetch sản phẩm khi hover danh mục
+  // Tải danh sách danh mục khi mở dropdown
   useEffect(() => {
+    categoryApi.getAll()
+      .then((data) => {
+        setCategories(data);
+        if (data.length > 0) setHoveredCategory(data[0]);
+      })
+      .catch(() => setCategories([]));
+  }, []);
+
+  // Khi đổi danh mục đang hover: nếu danh mục có chủ đề (themeCount > 0, do Backend tính)
+  // thì tải các chủ đề thuộc danh mục đó
+  useEffect(() => {
+    if (!hoveredCategory) return;
+    setHoveredTheme(null);
+    if (hoveredCategory.themeCount > 0) {
+      setLoadingThemes(true);
+      themeApi.getAll(hoveredCategory.id)
+        .then((data) => {
+          setThemes(data);
+          setHoveredTheme(data.length > 0 ? data[0] : null);
+        })
+        .catch(() => setThemes([]))
+        .finally(() => setLoadingThemes(false));
+    } else {
+      setThemes([]);
+    }
+  }, [hoveredCategory?.id]);
+
+  // Tải sản phẩm: theo chủ đề đang hover nếu có, ngược lại theo danh mục trực tiếp
+  useEffect(() => {
+    if (!hoveredCategory) return;
+    if (hoveredCategory.themeCount > 0 && !hoveredTheme) return; // đang chờ tải chủ đề
+
     const fetchProducts = async () => {
       setLoadingProducts(true);
       try {
         const res = await productApi.getAll({
-          theme: hoveredCategory.theme,
+          categoryId: hoveredCategory.id,
+          themeId: hoveredTheme?.id,
           pageSize: 4,
           page: 1,
         });
@@ -295,29 +336,38 @@ const ProductDropdown = ({ onClose }: { onClose: () => void }) => {
       }
     };
     fetchProducts();
-  }, [hoveredCategory.id]); // ← dependency là hoveredCategory.id
+  }, [hoveredCategory?.id, hoveredTheme?.id]);
+
+  if (categories.length === 0) return null;
+
+  const viewAllLink = hoveredTheme
+    ? `/products?themeId=${hoveredTheme.id}`
+    : hoveredCategory
+      ? `/products?categoryId=${hoveredCategory.id}`
+      : '/products';
+  const heading = hoveredTheme?.name || hoveredCategory?.name || '';
 
   return (
-    <div className="absolute top-full left-1/2 -translate-x-1/2 w-screen max-w-4xl bg-white shadow-xl border-t border-gray-100 z-50 flex rounded-b-xl overflow-hidden"
+    <div className="absolute top-full left-1/2 -translate-x-1/2 w-screen max-w-5xl bg-white shadow-xl border-t border-gray-100 z-50 flex rounded-b-xl overflow-hidden"
       style={{ maxHeight: '480px' }}>
 
-      {/* Danh sách danh mục — scroll dọc */}
+      {/* Cột 1 — Danh mục */}
       <div className="w-52 border-r border-gray-100 overflow-y-auto flex-shrink-0">
         {categories.map((cat) => (
           <button
             key={cat.id}
-            onMouseEnter={() => setHoveredCategory(cat)} // ← cùng setState
+            onMouseEnter={() => setHoveredCategory(cat)}
             onClick={() => {
-              navigate(`/products?theme=${cat.theme}`);
+              navigate(`/products?categoryId=${cat.id}`);
               onClose();
             }}
             className={`w-full text-left px-5 py-3 text-sm transition flex items-center justify-between
-              ${hoveredCategory.id === cat.id
+              ${hoveredCategory?.id === cat.id
                 ? 'bg-flower-50 text-flower-100 font-medium border-l-2 border-flower-100'
                 : 'text-gray-600 hover:bg-gray-50'}`}
           >
             {cat.name}
-            {hoveredCategory.id === cat.id && (
+            {hoveredCategory?.id === cat.id && (
               <svg className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
@@ -326,12 +376,42 @@ const ProductDropdown = ({ onClose }: { onClose: () => void }) => {
         ))}
       </div>
 
-      {/* Sản phẩm tiêu biểu — cùng component, nhận state từ cha */}
+      {/* Cột 2 — Chủ đề: chỉ hiện khi danh mục đang hover có chủ đề (Backend báo qua themeCount) */}
+      {hoveredCategory && hoveredCategory.themeCount > 0 && (
+        <div className="w-48 border-r border-gray-100 overflow-y-auto flex-shrink-0 bg-gray-50/60">
+          {loadingThemes ? (
+            <div className="p-4 space-y-3">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-3.5 bg-gray-100 rounded animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            themes.map((theme) => (
+              <button
+                key={theme.id}
+                onMouseEnter={() => setHoveredTheme(theme)}
+                onClick={() => {
+                  navigate(`/products?themeId=${theme.id}`);
+                  onClose();
+                }}
+                className={`w-full text-left px-4 py-2.5 text-sm transition
+                  ${hoveredTheme?.id === theme.id
+                    ? 'bg-white text-flower-100 font-medium'
+                    : 'text-gray-600 hover:bg-white/70'}`}
+              >
+                {theme.name}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Cột 3 — Sản phẩm tiêu biểu */}
       <div className="flex-1 p-6 overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-gray-800">{hoveredCategory.name}</h3>
+          <h3 className="font-semibold text-gray-800">{heading}</h3>
           <Link
-            to={`/products?theme=${hoveredCategory.theme}`}
+            to={viewAllLink}
             onClick={onClose}
             className="text-sm text-flower-100 hover:underline">
             Xem tất cả →
@@ -817,75 +897,6 @@ const Navbar = () => {
 </div>
 
     </>
-  );
-};
-
-const ProductCategoryItem = ({ cat, navigate, setShowProductMenu }: any) => {
-  const [isHovered, setIsHovered] = useState(false);
-
-  return (
-    <button
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onClick={() => { navigate(`/products?theme=${cat.theme}`); setShowProductMenu(false); }}
-      className={`w-full text-left px-5 py-3 text-sm transition flex items-center justify-between
-        ${isHovered ? 'bg-flower-50 text-flower-100 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
-    >
-      {cat.name}
-      <svg className={`h-4 w-4 transition ${isHovered ? 'opacity-100' : 'opacity-0'}`}
-        fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-      </svg>
-    </button>
-  );
-};
-
-const ProductPreview = () => {
-  const [hoveredCategory, setHoveredCategory] = useState(categories[0]);
-  const [products, setProducts] = useState<ProductResponse[]>([]);
-
-  useEffect(() => {
-    const fetch = async () => {
-      try {
-        const res = await productApi.getAll({ theme: hoveredCategory.theme, pageSize: 4, page: 1 });
-        setProducts(res.items);
-      } catch { setProducts([]); }
-    };
-    fetch();
-  }, [hoveredCategory]);
-
-  return (
-    <div className="flex-1 p-6 overflow-y-auto">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-gray-800">{hoveredCategory.name}</h3>
-        <Link to={`/products?theme=${hoveredCategory.theme}`}
-          className="text-sm text-flower-100 hover:underline">
-          Xem tất cả →
-        </Link>
-      </div>
-      {products.length > 0 ? (
-        <div className="grid grid-cols-4 gap-4">
-          {products.map((p) => (
-            <Link key={p.id} to={`/products/${p.id}`} className="group">
-              <div className="aspect-square bg-gray-50 rounded-xl overflow-hidden mb-2">
-                {p.imageUrl ? (
-                  <img src={p.imageUrl} alt={p.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-3xl">🧱</div>
-                )}
-              </div>
-              <p className="text-xs text-gray-700 font-medium line-clamp-2 group-hover:text-flower-100">{p.name}</p>
-              <p className="text-xs text-flower-100 font-semibold mt-1">{p.price.toLocaleString('vi-VN')}đ</p>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <div className="flex items-center justify-center h-32 text-gray-400 text-sm">
-          Chưa có sản phẩm trong danh mục này
-        </div>
-      )}
-    </div>
   );
 };
 

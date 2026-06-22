@@ -1,4 +1,4 @@
-﻿using BaseCore.Entities;
+using BaseCore.Entities;
 using BaseCore.Repository.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,7 +11,9 @@ namespace BaseCore.Repository.Implementations
 
         public async Task<IEnumerable<Category>> GetAllAsync()
             => await _context.Categories
+                .Where(c => c.IsActive)
                 .Include(c => c.Products)
+                .Include(c => c.CategoryThemes).ThenInclude(ct => ct.Theme)
                 .OrderBy(c => c.Name)
                 .AsNoTracking()
                 .ToListAsync();
@@ -19,7 +21,8 @@ namespace BaseCore.Repository.Implementations
         public async Task<Category?> GetByIdAsync(int id)
             => await _context.Categories
                 .Include(c => c.Products)
-                .FirstOrDefaultAsync(c => c.Id == id);
+                .Include(c => c.CategoryThemes).ThenInclude(ct => ct.Theme)
+                .FirstOrDefaultAsync(c => c.Id == id && c.IsActive);
 
         public async Task<Category> AddAsync(Category category)
         {
@@ -37,14 +40,15 @@ namespace BaseCore.Repository.Implementations
         public async Task DeleteAsync(int id)
         {
             var category = await _context.Categories.FindAsync(id);
+
             if (category != null)
             {
-                _context.Categories.Remove(category);
+                category.IsActive = false;
                 await _context.SaveChangesAsync();
             }
         }
 
         public async Task<bool> ExistsAsync(string name)
-            => await _context.Categories.AnyAsync(c => c.Name == name);
+            => await _context.Categories.AnyAsync(c => c.Name == name && c.IsActive);
     }
 }

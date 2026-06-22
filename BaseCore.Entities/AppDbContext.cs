@@ -9,6 +9,8 @@ namespace BaseCore.Entities
 
         // Mỗi DbSet = một bảng trong database
         public DbSet<Category> Categories { get; set; }
+        public DbSet<Theme> Themes { get; set; }
+        public DbSet<CategoryTheme> CategoryThemes { get; set; }
         public DbSet<Product> Products { get; set; }
         public DbSet<Role> Roles { get; set; }
         public DbSet<User> Users { get; set; }
@@ -78,6 +80,30 @@ namespace BaseCore.Entities
             //    .WithMany()
             //    .HasForeignKey(p => p.CreatedBy)
             //    .OnDelete(DeleteBehavior.Restrict);
+
+            // Theme ↔ Category (nhiều-nhiều qua bảng nối CategoryTheme)
+            modelBuilder.Entity<CategoryTheme>()
+                .HasKey(ct => new { ct.CategoryId, ct.ThemeId });
+
+            modelBuilder.Entity<CategoryTheme>()
+                .HasOne(ct => ct.Category)
+                .WithMany(c => c.CategoryThemes)
+                .HasForeignKey(ct => ct.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<CategoryTheme>()
+                .HasOne(ct => ct.Theme)
+                .WithMany(t => t.CategoryThemes)
+                .HasForeignKey(ct => ct.ThemeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Product ↔ Theme (nullable FK, NO ACTION to avoid multi-cascade-path)
+            modelBuilder.Entity<Product>()
+                .HasOne(p => p.ThemeNav)
+                .WithMany(t => t.Products)
+                .HasForeignKey(p => p.ThemeId)
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false);
 
             modelBuilder.Entity<StockBatch>()
                 .HasOne(s => s.Supplier)

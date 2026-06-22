@@ -16,9 +16,11 @@ export interface ProductResponse {
   stockQuantity: number;
   imageUrl?: string;
   categoryName?: string;
-  theme?: string;
+  categoryId?: number;
+  theme?: string;       // tên chủ đề
+  themeId?: number;    // id chủ đề
   ageRange?: string;
-  pieceCount?: number;
+  highlights?: string;
   setNumber?: string;
   isFeatured: boolean;
   averageRating: number;
@@ -62,6 +64,7 @@ export interface ProductSearchRequest {
   keyword?: string;
   categoryId?: number;
   theme?: string;
+  themeId?: number;    // lọc theo id chủ đề
   ageRange?: string;
   minPrice?: number;
   maxPrice?: number;
@@ -69,8 +72,6 @@ export interface ProductSearchRequest {
   sortBy?: string;
   page?: number;
   pageSize?: number;
-  minPieces?: number;
-  maxPieces?: number;
 }
 
 export interface CreateProductRequest {
@@ -81,9 +82,10 @@ export interface CreateProductRequest {
   stockQuantity: number;
   imageUrl?: string;
   categoryId: number;
-  theme?: string;
+  theme?: string;    // legacy
+  themeId?: number;  // FK to Themes
   ageRange?: string;
-  pieceCount?: number;
+  highlights?: string;
   setNumber?: string;
   isFeatured?: boolean;
   images?: string[];
@@ -97,9 +99,10 @@ export interface UpdateProductRequest {
   stockQuantity?: number;
   imageUrl?: string;
   categoryId?: number;
-  theme?: string;
+  theme?: string;    // legacy
+  themeId?: number;  // FK to Themes
   ageRange?: string;
-  pieceCount?: number;
+  highlights?: string;
   setNumber?: string;
   isFeatured?: boolean;
   isActive?: boolean;

@@ -1,4 +1,4 @@
-﻿using BaseCore.DTO.Request;
+using BaseCore.DTO.Request;
 using BaseCore.DTO.Response;
 using BaseCore.Entities;
 using BaseCore.Repository.Implementations;
@@ -15,7 +15,9 @@ namespace BaseCore.Services.Implementations
             _productRepository = productRepository;
         }
 
-        private static ProductResponse MapToResponse(Product product)
+        // soldCount được tính thực tế từ OrderItems (xem GetSoldCountsAsync),
+        // KHÔNG dùng cột Product.SoldCount lưu sẵn (cột này không được cập nhật theo đơn hàng)
+        private static ProductResponse MapToResponse(Product product, int soldCount)
         {
             return new ProductResponse
             {
@@ -24,14 +26,16 @@ namespace BaseCore.Services.Implementations
                 Price = product.Price,
                 OldPrice = product.OldPrice,
                 StockQuantity = product.StockQuantity,
+                CategoryId = product.CategoryId,
                 CategoryName = product.Category?.Name,
-                Theme = product.Theme,
+                Theme = product.ThemeNav?.Name ?? product.Theme,
+                ThemeId = product.ThemeId,
                 AgeRange = product.AgeRange,
-                PieceCount = product.PieceCount,
+                Highlights = product.Highlights,
                 SetNumber = product.SetNumber,
                 IsFeatured = product.IsFeatured,
                 CreatedAt = product.CreatedAt,
-                SoldCount = product.SoldCount,
+                SoldCount = soldCount,
 
                 AverageRating = product.Reviews.Any()
                     ? product.Reviews.Average(r => r.Rating) : 0,
@@ -57,7 +61,8 @@ namespace BaseCore.Services.Implementations
         public async Task<PagedResponse<ProductResponse>> GetAllAsync(ProductSearchRequest request)
         {
             var (items, totalCount) = await _productRepository.GetAllAsync(request);
-            var mapped = items.Select(p => MapToResponse(p));
+            var soldCounts = await _productRepository.GetSoldCountsAsync(items.Select(p => p.Id));
+            var mapped = items.Select(p => MapToResponse(p, soldCounts.GetValueOrDefault(p.Id)));
             return new PagedResponse<ProductResponse>
             {
                 Items = mapped,
@@ -73,14 +78,16 @@ namespace BaseCore.Services.Implementations
         {
             var product = await _productRepository.GetByIdAsync(id);
             if (product == null) return null;
-            return MapToResponse(product);
+            var soldCounts = await _productRepository.GetSoldCountsAsync(new[] { id });
+            return MapToResponse(product, soldCounts.GetValueOrDefault(id));
         }
 
         //=============== GET FEATURED ======================
         public async Task<IEnumerable<ProductResponse>> GetFeaturedAsync(int count = 8)
         {
-            var product = await _productRepository.GetFeaturedAsync(count);
-            return product.Select(p => MapToResponse(p));
+            var products = await _productRepository.GetFeaturedAsync(count);
+            var soldCounts = await _productRepository.GetSoldCountsAsync(products.Select(p => p.Id));
+            return products.Select(p => MapToResponse(p, soldCounts.GetValueOrDefault(p.Id)));
         }
 
         //=============== CREATE ======================
@@ -96,14 +103,15 @@ namespace BaseCore.Services.Implementations
                 ImageUrl = request.ImageUrl,
                 CategoryId = request.CategoryId,
                 Theme = request.Theme,
+                ThemeId = request.ThemeId,
                 AgeRange = request.AgeRange,
-                PieceCount = request.PieceCount,
+                Highlights = request.Highlights,
                 SetNumber = request.SetNumber,
                 IsFeatured = request.IsFeatured,
             };
 
             var created = await _productRepository.AddAsync(product);
-            return MapToResponse(created);
+            return MapToResponse(created, 0); // sản phẩm vừa tạo, chưa có đơn hàng nào
         }
 
         // ========== UPDATE ==========
@@ -118,15 +126,23 @@ namespace BaseCore.Services.Implementations
             if (request.OldPrice.HasValue) product.OldPrice = request.OldPrice.Value;
             if (request.StockQuantity.HasValue) product.StockQuantity = request.StockQuantity.Value;
             if (request.ImageUrl != null) product.ImageUrl = request.ImageUrl;
+            if (request.CategoryId.HasValue) product.CategoryId = request.CategoryId.Value;
             if (request.Theme != null) product.Theme = request.Theme;
+            if (request.ThemeId.HasValue) product.ThemeId = request.ThemeId.Value;
+            else if (request.ThemeId == null && request.Theme != null) product.ThemeId = null;
             if (request.AgeRange != null) product.AgeRange = request.AgeRange;
-            if (request.PieceCount.HasValue) product.PieceCount = request.PieceCount.Value;
+            if (request.Highlights != null) product.Highlights = request.Highlights;
             if (request.SetNumber != null) product.SetNumber = request.SetNumber;
             if (request.IsFeatured.HasValue) product.IsFeatured = request.IsFeatured.Value;
             product.UpdatedAt = DateTime.UtcNow;
 
             await _productRepository.UpdateAsync(product);
-            return MapToResponse(product);
+
+            // Fetch lại để load đúng navigation property (Category, Images, Reviews)
+            var updated = await _productRepository.GetByIdAsync(id);
+            var soldCounts = await _productRepository.GetSoldCountsAsync(new[] { id });
+            var soldCount = soldCounts.GetValueOrDefault(id);
+            return updated != null ? MapToResponse(updated, soldCount) : MapToResponse(product, soldCount);
         }
 
         // ========== DELETE ==========

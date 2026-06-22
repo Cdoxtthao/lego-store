@@ -28,6 +28,7 @@ namespace BaseCore.APIService.Controllers
                 description = c.Description,
                 imageUrl = c.ImageUrl,
                 productCount = c.Products?.Count(p => p.IsActive) ?? 0,
+                themeCount = c.CategoryThemes?.Count(ct => ct.Theme.IsActive) ?? 0,
             });
             return Ok(response);
         }

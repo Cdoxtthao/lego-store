@@ -1,4 +1,4 @@
-﻿using BaseCore.DTO.Request;
+using BaseCore.DTO.Request;
 using BaseCore.Entities;
 using BaseCore.Repository.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +19,7 @@ namespace BaseCore.Repository.Implementations
             // Bắt đầu từ query cơ bản
             var query = _context.Products
                 .Include(p => p.Category)
+                .Include(p => p.ThemeNav)
                 .Include(p => p.Reviews)
                 .Include(p => p.Images)
                 .Where(p => p.IsActive)
@@ -33,7 +34,9 @@ namespace BaseCore.Repository.Implementations
             if (request.CategoryId.HasValue)
                 query = query.Where(p => p.CategoryId == request.CategoryId);
 
-            if (!string.IsNullOrEmpty(request.Theme))
+            if (request.ThemeId.HasValue)
+                query = query.Where(p => p.ThemeId == request.ThemeId);
+            else if (!string.IsNullOrEmpty(request.Theme))
                 query = query.Where(p => p.Theme == request.Theme);
 
             if (!string.IsNullOrEmpty(request.AgeRange))
@@ -45,12 +48,6 @@ namespace BaseCore.Repository.Implementations
             if (request.MaxPrice.HasValue)
                 query = query.Where(p => p.Price <= request.MaxPrice);
 
-            if (request.MinPieces.HasValue)
-                query = query.Where(p => p.PieceCount >= request.MinPieces);
-
-            if (request.MaxPieces.HasValue)
-                query = query.Where(p => p.PieceCount <= request.MaxPieces.Value);
-
             if (request.IsFeatured.HasValue)
                 query = query.Where(p => p.IsFeatured == request.IsFeatured);
 
@@ -60,6 +57,13 @@ namespace BaseCore.Repository.Implementations
                 "price_asc" => query.OrderBy(p => p.Price),
                 "price_desc" => query.OrderByDescending(p => p.Price),
                 "newest" => query.OrderByDescending(p => p.CreatedAt),
+                // Bán chạy nhất: tính theo tổng số lượng đã bán qua OrderItems,
+                // loại trừ đơn hàng đã hủy — tự cập nhật theo đơn hàng thực tế
+                "bestseller" => query.OrderByDescending(p =>
+                                         p.OrderItems
+                                            .Where(oi => oi.Order.Status != "Cancelled")
+                                            .Sum(oi => oi.Quantity))
+                                     .ThenByDescending(p => p.CreatedAt),
                 _ => query.OrderByDescending(p => p.IsFeatured)
                                      .ThenByDescending(p => p.CreatedAt)
             };
@@ -79,6 +83,7 @@ namespace BaseCore.Repository.Implementations
         public async Task<Product?> GetByIdAsync(int id)
             => await _context.Products
                 .Include(p => p.Category)
+                .Include(p => p.ThemeNav)
                 .Include(p => p.Reviews)
                     .ThenInclude(r => r.User)
                 .Include(p => p.Images)
@@ -127,5 +132,17 @@ namespace BaseCore.Repository.Implementations
 
         public async Task<bool> ExistsAsync(int id)
             => await _context.Products.AnyAsync(p => p.Id == id && p.IsActive);
+
+        public async Task<Dictionary<int, int>> GetSoldCountsAsync(IEnumerable<int> productIds)
+        {
+            var ids = productIds.ToList();
+            if (ids.Count == 0) return new Dictionary<int, int>();
+
+            return await _context.OrderItems
+                .Where(oi => ids.Contains(oi.ProductId) && oi.Order.Status != "Cancelled")
+                .GroupBy(oi => oi.ProductId)
+                .Select(g => new { ProductId = g.Key, Total = g.Sum(oi => oi.Quantity) })
+                .ToDictionaryAsync(x => x.ProductId, x => x.Total);
+        }
     }
 }

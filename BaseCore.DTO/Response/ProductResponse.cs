@@ -1,4 +1,4 @@
-﻿namespace BaseCore.DTO.Response
+namespace BaseCore.DTO.Response
 {
     public class ProductResponse
     {
@@ -9,10 +9,12 @@
         public decimal? OldPrice { get; set; }
         public int StockQuantity { get; set; }
         public string? ImageUrl { get; set; }
+        public int? CategoryId { get; set; }
         public string? CategoryName { get; set; }
-        public string? Theme { get; set; }
+        public string? Theme { get; set; }       // Tên chủ đề
+        public int? ThemeId { get; set; }         // ID chủ đề
         public string? AgeRange { get; set; }
-        public int? PieceCount { get; set; }
+        public string? Highlights { get; set; }   // Đặc điểm nổi bật của sản phẩm
         public string? SetNumber { get; set; }
         public bool IsFeatured { get; set; }
         public double AverageRating { get; set; }

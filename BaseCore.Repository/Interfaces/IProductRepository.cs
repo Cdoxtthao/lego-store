@@ -17,6 +17,10 @@ namespace BaseCore.Repository.Interfaces
         // Lấy sản phẩm theo danh mục
         Task<IEnumerable<Product>> GetByCategoryAsync(int categoryId, int page, int pageSize);
 
+        // Tính số lượng đã bán thực tế của từng sản phẩm dựa trên OrderItems
+        // (không tính đơn hàng đã hủy) — dùng để hiện SoldCount & sort "bestseller"
+        Task<Dictionary<int, int>> GetSoldCountsAsync(IEnumerable<int> productIds);
+
         // Thêm mới
         Task<Product> AddAsync(Product product);
 

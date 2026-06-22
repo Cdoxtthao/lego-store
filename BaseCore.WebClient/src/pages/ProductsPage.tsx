@@ -22,7 +22,6 @@ const FilterSidebar = ({
     category: true,
     price: true,
     age: true,
-    pieces: true,
   });
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
 
@@ -43,20 +42,8 @@ const FilterSidebar = ({
     { label: 'Trên 5.000.000đ', min: 5000000, max: undefined },
   ];
 
-  const pieceRanges = [
-    { label: 'Dưới 200 mảnh', min: undefined, max: 200 },
-    { label: '200 - 500 mảnh', min: 200, max: 500 },
-    { label: '500 - 1000 mảnh', min: 500, max: 1000 },
-    { label: '1000 - 2000 mảnh', min: 1000, max: 2000 },
-    { label: 'Trên 2000 mảnh', min: 2000, max: undefined },
-  ];
-
   const selectedPrice = priceRanges.find(
     r => r.min === filters.minPrice && r.max === filters.maxPrice
-  );
-
-  const selectedPieces = pieceRanges.find(
-    r => r.min === filters.minPieces && r.max === filters.maxPieces
   );
 
   return (
@@ -66,7 +53,7 @@ const FilterSidebar = ({
       </p>
 
       {/* Reset bộ lọc */}
-      {(filters.theme || filters.minPrice || filters.maxPrice || filters.ageRange || filters.minPieces || filters.maxPieces) && (
+      {(filters.theme || filters.categoryId || filters.themeId || filters.minPrice || filters.maxPrice || filters.ageRange) && (
         <button
           onClick={() => onChange({ page: 1, pageSize: 12 })}
           className="w-full mb-4 text-sm text-flower-100 border border-flower-100 rounded-lg py-2 hover:bg-flower-50 transition">
@@ -78,7 +65,7 @@ const FilterSidebar = ({
       <div className="border-b border-gray-200 pb-4 mb-4">
         <button onClick={() => toggle('category')}
           className="flex items-center justify-between w-full text-left font-semibold text-gray-800 mb-3">
-          Danh mục
+          Chủ đề
           <svg className={`h-4 w-4 transition ${openSections.category ? 'rotate-180' : ''}`}
             fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -86,22 +73,33 @@ const FilterSidebar = ({
         </button>
         {openSections.category && (
           <div className="space-y-2 max-h-48 overflow-y-auto">
-            {categories.map(cat => (
-              <label key={cat.id} className="flex items-center gap-2 cursor-pointer group">
-                <input
-                  type="radio"
-                  name="theme"
-                  checked={filters.theme === cat.name}
-                  onChange={() => onChange({ ...filters, theme: cat.name, page: 1 })}
-                  className="accent-flower-100"
-                />
-                <span className={`text-sm group-hover:text-flower-100 transition flex-1
-                  ${filters.theme === cat.name ? 'text-flower-100 font-medium' : 'text-gray-600'}`}>
-                  {cat.name}
-                </span>
-                <span className="text-xs text-gray-400">({cat.productCount})</span>
-              </label>
-            ))}
+            {categories.map(cat => {
+              const isSelected = filters.categoryId
+                ? filters.categoryId === cat.id
+                : filters.theme === cat.name;
+              return (
+                <label key={cat.id} className="flex items-center gap-2 cursor-pointer group">
+                  <input
+                    type="radio"
+                    name="category"
+                    checked={isSelected}
+                    onChange={() => onChange({
+                      ...filters,
+                      categoryId: cat.id,
+                      theme: undefined,
+                      themeId: undefined,
+                      page: 1,
+                    })}
+                    className="accent-flower-100"
+                  />
+                  <span className={`text-sm group-hover:text-flower-100 transition flex-1
+                    ${isSelected ? 'text-flower-100 font-medium' : 'text-gray-600'}`}>
+                    {cat.name}
+                  </span>
+                  <span className="text-xs text-gray-400">({cat.productCount})</span>
+                </label>
+              );
+            })}
           </div>
         )}
       </div>
@@ -177,50 +175,6 @@ const FilterSidebar = ({
                 {age}
               </button>
             ))}
-          </div>
-        )}
-      </div>
-
-      {/* Số mảnh */}
-      <div className="pb-4">
-        <button onClick={() => toggle('pieces')}
-          className="flex items-center justify-between w-full text-left font-semibold text-gray-800 mb-3">
-          Số mảnh
-          <svg className={`h-4 w-4 transition ${openSections.pieces ? 'rotate-180' : ''}`}
-            fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-        {openSections.pieces && (
-          <div className="space-y-2">
-            {pieceRanges.map(range => (
-              <label key={range.label} className="flex items-center gap-2 cursor-pointer group">
-                <input
-                  type="radio"
-                  name="pieces"
-                  checked={selectedPieces?.label === range.label}
-                  onChange={() => onChange({
-                    ...filters,
-                    minPieces: range.min,
-                    maxPieces: range.max,
-                    page: 1
-                  })}
-                  className="accent-flower-100"
-                />
-                <span className={`text-sm group-hover:text-flower-100 transition
-                  ${selectedPieces?.label === range.label ? 'text-flower-100 font-medium' : 'text-gray-600'}`}>
-                  {range.label}
-                </span>
-              </label>
-            ))}
-            {/* Bỏ chọn mảnh */}
-            {selectedPieces && (
-              <button
-                onClick={() => onChange({ ...filters, minPieces: undefined, maxPieces: undefined, page: 1 })}
-                className="text-xs text-gray-400 hover:text-flower-100 transition mt-1">
-                ✕ Bỏ chọn
-              </button>
-            )}
           </div>
         )}
       </div>
@@ -318,9 +272,9 @@ const ProductListCard = ({ product }: { product: ProductResponse }) => {
           )}
         </div>
 
-        {/* Số mảnh */}
-        {product.pieceCount && (
-          <p className="text-xs text-gray-400 mb-3">{product.pieceCount} mảnh</p>
+        {/* Đặc điểm nổi bật */}
+        {product.highlights && (
+          <p className="text-xs text-gray-400 mb-3 line-clamp-2">{product.highlights}</p>
         )}
 
         {/* Buttons */}
@@ -436,6 +390,8 @@ const ProductsPage = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filters, setFilters] = useState<ProductSearchRequest>({
     keyword: searchParams.get('keyword') || undefined,
+    categoryId: searchParams.get('categoryId') ? Number(searchParams.get('categoryId')) : undefined,
+    themeId: searchParams.get('themeId') ? Number(searchParams.get('themeId')) : undefined,
     theme: searchParams.get('theme') || undefined,
     ageRange: searchParams.get('ageRange') || undefined,
     sortBy: searchParams.get('sortBy') || undefined,
@@ -462,6 +418,8 @@ const ProductsPage = () => {
   const handleFilterChange = (newFilters: ProductSearchRequest) => {
     const params: Record<string, string> = {};
     if (newFilters.keyword) params.keyword = newFilters.keyword;
+    if (newFilters.categoryId) params.categoryId = String(newFilters.categoryId);
+    if (newFilters.themeId) params.themeId = String(newFilters.themeId);
     if (newFilters.theme) params.theme = newFilters.theme;
     if (newFilters.ageRange) params.ageRange = newFilters.ageRange;
     if (newFilters.sortBy) params.sortBy = newFilters.sortBy;
@@ -480,6 +438,10 @@ const ProductsPage = () => {
         <h1 className="text-2xl font-bold text-gray-800 mb-2">
           {filters.keyword
             ? `Kết quả tìm kiếm cho "${filters.keyword}"`
+            : filters.themeId
+            ? (result?.items[0]?.theme ? `LEGO ${result.items[0].theme}` : 'Chủ đề')
+            : filters.categoryId
+            ? (result?.items[0]?.categoryName || 'Danh mục')
             : filters.theme
             ? `LEGO ${filters.theme}`
             : 'Tất cả sản phẩm'}

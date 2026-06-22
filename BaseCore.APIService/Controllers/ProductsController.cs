@@ -77,6 +77,16 @@ namespace BaseCore.APIService.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateProductRequest request)
         {
+            // Chủ đề (nếu chọn) phải đang được liên kết với danh mục đã chọn,
+            // nếu không sản phẩm sẽ không xuất hiện đúng trong menu danh mục -> chủ đề trên Web
+            if (request.ThemeId.HasValue)
+            {
+                var linked = await _context.CategoryThemes.AnyAsync(ct =>
+                    ct.CategoryId == request.CategoryId && ct.ThemeId == request.ThemeId.Value);
+                if (!linked)
+                    return BadRequest(new { message = "Chủ đề đã chọn không thuộc danh mục này" });
+            }
+
             var result = await _service.CreateAsync(request);
 
             // Lưu ảnh bổ sung nếu có
@@ -103,6 +113,20 @@ namespace BaseCore.APIService.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateProductRequest request)
         {
+            // Chủ đề (nếu đổi) phải đang được liên kết với danh mục hiện tại (hoặc danh mục mới nếu đổi cả 2)
+            if (request.ThemeId.HasValue)
+            {
+                var existing = await _context.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);
+                var effectiveCategoryId = request.CategoryId ?? existing?.CategoryId;
+                if (effectiveCategoryId.HasValue)
+                {
+                    var linked = await _context.CategoryThemes.AnyAsync(ct =>
+                        ct.CategoryId == effectiveCategoryId.Value && ct.ThemeId == request.ThemeId.Value);
+                    if (!linked)
+                        return BadRequest(new { message = "Chủ đề đã chọn không thuộc danh mục này" });
+                }
+            }
+
             var result = await _service.UpdateAsync(id, request);
 
             // Cập nhật ảnh bổ sung
