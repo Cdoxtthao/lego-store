@@ -14,7 +14,7 @@ import { wishlistApi } from '../api/wishlistApi';
 // ========== HERO BANNER ==========
 const heroBanners = [
   {
-    title: 'LEGO® Editions',
+    title: 'Bộ sưu tập đặc biệt',
     subtitle: 'Bộ sưu tập cầu thủ huyền thoại',
     script: 'Messi • CR7 • Mbappé • Vini Jr',  
     cta: 'Xem sản phẩm',
@@ -24,8 +24,8 @@ const heroBanners = [
     dark: false,
   },
   {
-    title: 'Khám phá thế giới LEGO',
-    subtitle: 'Hàng ngàn bộ LEGO chính hãng',
+    title: 'Khám phá thế giới đồ chơi',
+    subtitle: 'Hàng ngàn sản phẩm chính hãng',
     script: 'Giao hàng toàn quốc • Chính hãng 100%',
     cta: 'Mua ngay',
     link: '/products',
@@ -162,15 +162,32 @@ const categoryImageMap: Record<string, string> = {
   'Creator': '/images/products/Celestial-Pagoda-1.png',
 };
 
+// 3 danh mục hot cố định: lego (ảnh 1), robot (ảnh 2), gấu bông (ảnh 3) — ảnh lấy từ images/verdes
+const HOT_CATEGORIES = [
+  { keys: ['lego'], label: 'Lego', img: '/images/verdes/2.png' },
+  { keys: ['robot'], label: 'Robot', img: '/images/verdes/3.png' },
+  { keys: ['gấu bông', 'gau bong', 'gấu', 'stuffed', 'snuffed', 'teddy', 'plush'], label: 'Gấu bông', img: '/images/verdes/1.png' },
+];
+
 const CategorySection = ({ categories }: { categories: CategoryResponse[] }) => {
   if (categories.length === 0) return null;
+
+  // Chọn đúng 3 danh mục hot theo thứ tự lego → robot → gấu bông
+  const hot = HOT_CATEGORIES
+    .map(h => {
+      const cat = categories.find(c => h.keys.some(k => c.name.toLowerCase().includes(k)));
+      return cat ? { cat, img: h.img, label: h.label } : null;
+    })
+    .filter((x): x is { cat: CategoryResponse; img: string; label: string } => x !== null);
+
+  if (hot.length === 0) return null;
 
   return (
     <section className="max-w-7xl mx-auto px-6 py-12">
       <h1 className="text-4xl font-bold text-gray-800 mb-6 text-center">Danh Mục HOT</h1>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
-        {categories.map((cat) => {
-          const image = categoryImageMap[cat.name];
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
+        {hot.map(({ cat, img }) => {
+          const image = img;
           return (
             <Link key={cat.id} to={`/products?categoryId=${cat.id}`}
               className="relative rounded-2xl overflow-hidden group cursor-pointer bg-flower-50"
@@ -182,6 +199,12 @@ const CategorySection = ({ categories }: { categories: CategoryResponse[] }) => 
                   src={getImageUrl(image)}
                   alt={cat.name}
                   className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                  onError={(e) => {
+                    // Ảnh verdes chưa có (vd 3.png) -> fallback ảnh sản phẩm của danh mục hoặc ẩn
+                    const fb = cat.imageUrl ? getImageUrl(cat.imageUrl) : '';
+                    if (fb && e.currentTarget.src !== fb) { e.currentTarget.src = fb; }
+                    else { e.currentTarget.style.display = 'none'; }
+                  }}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-5xl">🧱</div>
@@ -252,8 +275,8 @@ const ProductSection = ({
       refreshCart();
       setAddedCartId(productId);
       setTimeout(() => setAddedCartId(null), 2000);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Có lỗi xảy ra');
     }
   };
 
@@ -423,10 +446,10 @@ const ProductSection = ({
 
 // ========== ĐỘ TUỔI ==========
 const ageRanges = [
-  { label: '6-10\nTUỔI', range: '8+', color: 'from-blue-400 to-blue-500', emoji: '🍼' },
-  { label: '10-12\nTUỔI', range: '10+', color: 'from-green-400 to-green-500', emoji: '🧸' },
-  { label: '12-14\nTUỔI', range: '12+', color: 'from-orange-400 to-orange-500', emoji: '🤖' },
-  { label: '14-18\nTUỔI', range: '14+', color: 'from-purple-400 to-purple-500', emoji: '🎮' },
+  { label: '6-10\nTUỔI', range: '6-10', color: 'from-blue-400 to-blue-500', emoji: '🍼' },
+  { label: '10-12\nTUỔI', range: '10-12', color: 'from-green-400 to-green-500', emoji: '🧸' },
+  { label: '12-14\nTUỔI', range: '12-14', color: 'from-orange-400 to-orange-500', emoji: '🤖' },
+  { label: '14-18\nTUỔI', range: '14-18', color: 'from-purple-400 to-purple-500', emoji: '🎮' },
   { label: '18+\nTUỔI', range: '18+', color: 'from-pink-400 to-pink-500', emoji: '🚀' },
 ];
 
@@ -466,17 +489,17 @@ const AgeSection = () => (
 const discoverItems = [
   {
     title: 'Bộ sưu tập mới nhất',
-    desc: 'Khám phá hàng trăm bộ LEGO mới nhất vừa ra mắt trong năm 2026.',
+    desc: 'Khám phá hàng trăm sản phẩm mới nhất vừa ra mắt trong năm 2026.',
     cta: 'Khám phá',
     link: '/products?sortBy=newest',
     bg: 'bg-amber-800',
     image: '/images/banners/5.jpg',
   },
   {
-    title: 'Góc sáng tạo LEGO',
-    desc: 'Xem thư viện ý tưởng lắp ráp và cảm hứng từ cộng đồng LEGO.',
+    title: 'Góc sáng tạo',
+    desc: 'Chia sẻ hình ảnh và bài viết, cùng khám phá cảm hứng từ cộng đồng.',
     cta: 'Tìm hiểu',
-    link: '/',
+    link: '/creative',
     bg: 'bg-sky-500',
     image: '/images/banners/4.jpg',
   },
@@ -525,6 +548,51 @@ const DiscoverSection = () => (
 
 
 
+// Helper to interleave products by category to avoid adjacent same-category items
+const interleaveProducts = (products: ProductResponse[], randomize: boolean): ProductResponse[] => {
+  const groups: Record<number, ProductResponse[]> = {};
+  products.forEach(p => {
+    const catId = p.categoryId || 0;
+    if (!groups[catId]) {
+      groups[catId] = [];
+    }
+    groups[catId].push(p);
+  });
+
+  if (randomize) {
+    Object.keys(groups).forEach(key => {
+      const arr = groups[Number(key)];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    });
+  }
+
+  let catIds = Object.keys(groups).map(Number);
+  if (randomize) {
+    for (let i = catIds.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [catIds[i], catIds[j]] = [catIds[j], catIds[i]];
+    }
+  } else {
+    catIds.sort((a, b) => a - b);
+  }
+
+  const result: ProductResponse[] = [];
+  const maxLen = Math.max(...Object.values(groups).map(g => g.length), 0);
+
+  for (let i = 0; i < maxLen; i++) {
+    for (const catId of catIds) {
+      if (groups[catId] && i < groups[catId].length) {
+        result.push(groups[catId][i]);
+      }
+    }
+  }
+
+  return result;
+};
+
 // ========== HOMEPAGE ==========
 const HomePage = () => {
   const [featured, setFeatured] = useState<ProductResponse[]>([]);
@@ -537,13 +605,17 @@ const HomePage = () => {
     const fetchData = async () => {
       try {
         const [featuredRes, newestRes, bestSellerRes, categoriesRes] = await Promise.all([
-          productApi.getFeatured(8),
-          productApi.getAll({ sortBy: 'newest', pageSize: 8, page: 1 }),
+          productApi.getFeatured(40),
+          productApi.getAll({ sortBy: 'newest', pageSize: 40, page: 1 }),
           productApi.getAll({ sortBy: 'bestseller', pageSize: 12, page: 1 }), // bán chạy nhất — tính theo đơn hàng thực tế ở Backend
           categoryApi.getAll(), // danh mục thật của shop, kèm số lượng sản phẩm mỗi danh mục
         ]);
-        setFeatured(featuredRes);
-        setNewest(newestRes.items);
+        
+        const interleavedFeatured = interleaveProducts(featuredRes, false).slice(0, 8);
+        const interleavedNewest = interleaveProducts(newestRes.items, true).slice(0, 8);
+
+        setFeatured(interleavedFeatured);
+        setNewest(interleavedNewest);
         setBestSeller(bestSellerRes.items);
         setCategories(categoriesRes);
       } catch (err) {

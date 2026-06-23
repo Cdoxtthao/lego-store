@@ -45,7 +45,14 @@ public class SupplierReceipt
     /// <summary>Ngày Supplier xác nhận / phản hồi</summary>
     public DateTime? ProcessedAt { get; set; }
 
+    /// <summary>ID của Seller nhận hàng</summary>
+    public int? SellerId { get; set; }
+
+    /// <summary>Biên lai được tạo tự động từ đề nghị của Supplier hay không</summary>
+    public bool IsFromProposal { get; set; } = false;
+
     // Navigation
     public BaseCore.Entities.User Supplier { get; set; } = null!;
     public BaseCore.Entities.Product Product { get; set; } = null!;
+    public BaseCore.Entities.User? Seller { get; set; }
 }

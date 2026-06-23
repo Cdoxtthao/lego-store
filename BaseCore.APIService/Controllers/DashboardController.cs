@@ -20,89 +20,114 @@ namespace BaseCore.APIService.Controllers
         public async Task<IActionResult> GetStats()
         {
             var now = DateTime.UtcNow;
-            var startOfMonth = new DateTime(now.Year, now.Month, 1);
-            var startOfWeek = now.AddDays(-(int)now.DayOfWeek);
+            var isSeller = User.IsInRole("Seller");
+            var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
             // Tổng sản phẩm
             var totalProducts = await _context.Products.CountAsync(p => p.IsActive);
-            var newProductsThisWeek = await _context.Products
-                .CountAsync(p => p.CreatedAt >= startOfWeek);
 
             // Đơn hàng
             var totalOrders = await _context.Orders.CountAsync();
-            var newOrdersToday = await _context.Orders
-                .CountAsync(o => o.CreatedAt.Date == now.Date);
             var pendingOrders = await _context.Orders
                 .CountAsync(o => o.Status == "Pending");
+            var cancelledOrders = await _context.Orders
+                .CountAsync(o => o.Status == "Cancelled");
+            var deliveredOrders = await _context.Orders
+                .CountAsync(o => o.Status == "Delivered");
 
-            // Người dùng
-            var totalUsers = await _context.Users.CountAsync(u => u.IsActive);
-            var newUsersThisWeek = await _context.Users
-                .CountAsync(u => u.CreatedAt >= startOfWeek);
+            // Biên lai đang chờ (Lọc theo Seller nếu là Seller)
+            var receiptsQuery = _context.SupplierReceipts.AsQueryable();
+            if (isSeller && int.TryParse(userIdStr, out int sellerIdVal))
+            {
+                receiptsQuery = receiptsQuery.Where(r => r.SellerId == sellerIdVal);
+            }
+            var pendingReceipts = await receiptsQuery
+                .CountAsync(r => r.Status == "Pending" || r.Status == "PendingSupplier" || r.Status == "PendingSeller");
 
-            // Doanh thu
-            var totalRevenue = await _context.Orders
-                .Where(o => o.Status != "Cancelled")
-                .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
-            var revenueThisMonth = await _context.Orders
-                .Where(o => o.Status != "Cancelled" && o.CreatedAt >= startOfMonth)
-                .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
-            var revenueLastMonth = await _context.Orders
-                .Where(o => o.Status != "Cancelled"
-                    && o.CreatedAt >= startOfMonth.AddMonths(-1)
-                    && o.CreatedAt < startOfMonth)
-                .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
+            // Tin nhắn chờ (số lượng người nhắn có tin chưa đọc)
+            var waitingMessages = await _context.Messages
+                .Where(m => m.IsFromUser && !m.IsRead)
+                .Select(m => m.UserId)
+                .Distinct()
+                .CountAsync();
 
-            // % tăng trưởng doanh thu
-            var revenueGrowth = revenueLastMonth > 0
-                ? Math.Round((revenueThisMonth - revenueLastMonth) / revenueLastMonth * 100, 1)
-                : 0;
+            // Tính lãi (doanh thu tính bằng đồng dựa theo lãi = giá bán - giá nhập)
+            var totalProfit = await _context.OrderItems
+                .Include(oi => oi.Order)
+                .Include(oi => oi.Product)
+                .Where(oi => oi.Order.Status != "Cancelled" && oi.Order.Status != "Returned")
+                .SumAsync(oi => (decimal?)(oi.Price - oi.Product.ImportPrice) * oi.Quantity) ?? 0;
+
+            // Trừ tiền biên lai nhập kho đã xác nhận — trừ TOÀN BỘ cho cả Admin và Seller
+            // để doanh thu hai bên LUÔN GIỐNG NHAU (theo dõi thống nhất).
+            var totalConfirmedReceiptsCost = await _context.SupplierReceipts
+                .Where(r => r.Status == "Confirmed")
+                .SumAsync(r => (decimal?)r.TotalAmount) ?? 0;
+            totalProfit -= totalConfirmedReceiptsCost;
 
             return Ok(new
             {
                 totalProducts,
-                newProductsThisWeek,
                 totalOrders,
-                newOrdersToday,
                 pendingOrders,
-                totalUsers,
-                newUsersThisWeek,
-                totalRevenue,
-                revenueThisMonth,
-                revenueGrowth,
+                cancelledOrders,
+                deliveredOrders,
+                pendingReceipts,
+                waitingMessages,
+                totalProfit,
             });
         }
 
         [HttpGet("revenue-chart")]
         public async Task<IActionResult> GetRevenueChart()
         {
-            var now = DateTime.UtcNow;
-
-            // Doanh thu 6 tháng gần nhất
+            // Doanh thu 7 ngày gần nhất
             var data = new List<object>();
-            for (int i = 5; i >= 0; i--)
+            var today = DateTime.UtcNow.Date;
+            for (int i = 6; i >= 0; i--)
             {
-                var month = now.AddMonths(-i);
-                var start = new DateTime(month.Year, month.Month, 1);
-                var end = start.AddMonths(1);
+                var date = today.AddDays(-i);
+                var start = date;
+                var end = date.AddDays(1);
 
                 var revenue = await _context.Orders
-                    .Where(o => o.Status != "Cancelled"
+                    .Where(o => o.Status != "Cancelled" && o.Status != "Returned"
                         && o.CreatedAt >= start
                         && o.CreatedAt < end)
                     .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
 
-                var orderCount = await _context.Orders
-                    .CountAsync(o => o.CreatedAt >= start && o.CreatedAt < end);
-
                 data.Add(new
                 {
-                    month = month.ToString("MM/yyyy"),
+                    date = date.ToString("dd/MM"),
                     revenue,
-                    orderCount,
                 });
             }
             return Ok(data);
+        }
+
+        [HttpGet("revenue-details")]
+        public async Task<IActionResult> GetRevenueDetails()
+        {
+            // Chi tiết doanh thu âm dương/vào ra từng sản phẩm
+            var details = await _context.OrderItems
+                .Include(oi => oi.Product)
+                .Include(oi => oi.Order)
+                .Where(oi => oi.Order.Status != "Cancelled" && oi.Order.Status != "Returned")
+                .GroupBy(oi => oi.ProductId)
+                .Select(g => new
+                {
+                    productId = g.Key,
+                    productName = g.First().Product.Name,
+                    productImage = g.First().Product.ImageUrl,
+                    quantity = g.Sum(oi => oi.Quantity),
+                    averagePrice = g.Average(oi => oi.Price),
+                    importPrice = g.First().Product.ImportPrice,
+                    profit = g.Sum(oi => (oi.Price - oi.Product.ImportPrice) * oi.Quantity)
+                })
+                .OrderByDescending(x => x.profit)
+                .ToListAsync();
+
+            return Ok(details);
         }
 
         [HttpGet("order-status-chart")]
@@ -126,7 +151,11 @@ namespace BaseCore.APIService.Controllers
         [HttpGet("top-products")]
         public async Task<IActionResult> GetTopProducts()
         {
+            // Lấy theo doanh thu cao nhất trở xuống dựa theo đơn xác nhận thành công
             var topProducts = await _context.OrderItems
+                .Include(oi => oi.Product)
+                .Include(oi => oi.Order)
+                .Where(oi => oi.Order.Status != "Cancelled" && oi.Order.Status != "Returned")
                 .GroupBy(oi => oi.ProductId)
                 .Select(g => new
                 {
@@ -136,7 +165,7 @@ namespace BaseCore.APIService.Controllers
                     totalSold = g.Sum(oi => oi.Quantity),
                     totalRevenue = g.Sum(oi => oi.Price * oi.Quantity),
                 })
-                .OrderByDescending(x => x.totalSold)
+                .OrderByDescending(x => x.totalRevenue)
                 .Take(5)
                 .ToListAsync();
 
@@ -154,6 +183,9 @@ namespace BaseCore.APIService.Controllers
                 {
                     id = o.Id,
                     customerName = o.User.FullName,
+                    revenue = o.Status == "Cancelled" ? 0 
+                            : (o.Status == "Returned" || o.Status == "Refunded") ? -o.TotalAmount 
+                            : o.TotalAmount,
                     totalAmount = o.TotalAmount,
                     status = o.Status,
                     createdAt = o.CreatedAt,

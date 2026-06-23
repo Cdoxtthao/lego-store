@@ -61,6 +61,18 @@ const AdminUsers = () => {
     }
   };
 
+  const handleToggleActive = async (userId: number, isActive: boolean) => {
+    try {
+      await axiosClient.put(`/Users/${userId}/active`, isActive);
+      fetchUsers();
+      if (selectedUser?.id === userId) {
+        setSelectedUser({ ...selectedUser, isActive });
+      }
+    } catch {
+      alert('Không thể cập nhật trạng thái tài khoản.');
+    }
+  };
+
   const handleSearch = (e: React.SyntheticEvent) => {
     e.preventDefault();
     setSearch(searchInput);
@@ -269,6 +281,22 @@ const AdminUsers = () => {
                       {role.label}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Trạng thái hoạt động */}
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Trạng thái tài khoản</p>
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${selectedUser.isActive ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                    {selectedUser.isActive ? 'Đang hoạt động' : 'Đã ngừng hoạt động'}
+                  </span>
+                  <button
+                    onClick={() => handleToggleActive(selectedUser.id, !selectedUser.isActive)}
+                    className={`px-4 py-1.5 text-xs rounded-lg font-semibold text-white transition
+                      ${selectedUser.isActive ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}>
+                    {selectedUser.isActive ? 'Ngừng hoạt động' : 'Mở khoá'}
+                  </button>
                 </div>
               </div>
             </div>

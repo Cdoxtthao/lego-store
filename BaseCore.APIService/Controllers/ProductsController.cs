@@ -1,4 +1,4 @@
-﻿using BaseCore.DTO.Request;
+using BaseCore.DTO.Request;
 using BaseCore.Entities;
 using BaseCore.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -77,6 +77,10 @@ namespace BaseCore.APIService.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateProductRequest request)
         {
+            if (User.IsInRole("Seller"))
+            {
+                request.StockQuantity = 0;
+            }
             // Chủ đề (nếu chọn) phải đang được liên kết với danh mục đã chọn,
             // nếu không sản phẩm sẽ không xuất hiện đúng trong menu danh mục -> chủ đề trên Web
             if (request.ThemeId.HasValue)
@@ -113,6 +117,11 @@ namespace BaseCore.APIService.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateProductRequest request)
         {
+            if (User.IsInRole("Supplier") || User.IsInRole("Seller"))
+            {
+                request.StockQuantity = null;
+            }
+
             // Chủ đề (nếu đổi) phải đang được liên kết với danh mục hiện tại (hoặc danh mục mới nếu đổi cả 2)
             if (request.ThemeId.HasValue)
             {

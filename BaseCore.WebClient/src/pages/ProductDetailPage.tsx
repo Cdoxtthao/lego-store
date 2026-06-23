@@ -119,6 +119,21 @@ const ImageGallery = ({ product }: { product: ProductResponse }) => {
   );
 };
 
+const getPageNumbers = (currentPage: number, totalPages: number) => {
+  const maxButtons = 5;
+  let start = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+  let end = start + maxButtons - 1;
+  if (end > totalPages) {
+    end = totalPages;
+    start = Math.max(1, end - maxButtons + 1);
+  }
+  const pages = [];
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+  return pages;
+};
+
 // ========== PRODUCT DETAIL PAGE ==========
 const ProductDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -500,21 +515,11 @@ const ProductDetailPage = () => {
               )}
             </div>
 
-            {/* Mô tả sản phẩm — lấy từ mô tả đã nhập khi quản lý sản phẩm ở Admin */}
+            {/* Mô tả */}
             {product.description && (
-              <div className="mb-6">
-                <p className="text-sm font-semibold text-gray-700 mb-1">📝 Mô tả chi tiết</p>
-                <p className="text-gray-600 leading-relaxed">
-                  {product.description}
-                </p>
-              </div>
-            )}
-
-            {/* Đặc điểm nổi bật */}
-            {product.highlights && (
               <div className="bg-flower-50 border border-flower-100/20 rounded-xl p-4 mb-6">
                 <p className="text-sm font-semibold text-flower-100 mb-1">✨ Mô tả</p>
-                <p className="text-sm text-gray-600 leading-relaxed">{product.highlights}</p>
+                <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{product.description}</p>
               </div>
             )}
 
@@ -851,10 +856,7 @@ const ProductDetailPage = () => {
           </button>
 
           {/* Số trang */}
-          {Array.from(
-            { length: Math.ceil(relatedTotal / relatedPageSize) },
-            (_, i) => i + 1
-          ).map(p => (
+          {getPageNumbers(relatedPage, Math.ceil(relatedTotal / relatedPageSize)).map(p => (
             <button
               key={p}
               onClick={() => setRelatedPage(p)}

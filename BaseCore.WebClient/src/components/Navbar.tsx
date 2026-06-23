@@ -11,16 +11,17 @@ import { cartApi } from '../api/cartApi';
 import { getImageUrl } from '../utils/imageHelper';
 import { useWishlist } from '../context/WishlistContext';
 import * as signalR from '@microsoft/signalr';
+import NotificationBell from './NotificationBell';
 
 // =================== THANH THÔNG BÁO ==========================
 const announcements = [
   { text: '🚚 Miễn phí vận chuyển cho đơn hàng từ 500.000đ', link: '/products' },
-  { text: '🎁 Mua 2 tặng 1 cho tất cả sản phẩm LEGO City', link: '/products?theme=City' },
+  { text: '🎁 Mua 2 tặng 1 cho nhiều sản phẩm chọn lọc', link: '/products?theme=City' },
   { text: '⚡ Flash sale mỗi ngày 12h - 14h — Giảm đến 30%', link: '/products?sortBy=price_asc' },
   { text: '🌟 Thành viên mới đăng ký nhận ngay voucher 50.000đ', link: '/register' },
   { 
     text: (
-      <>🎄 Bộ sưu tập LEGO mới nhất vừa về — {'  '}
+      <>🎄 Bộ sưu tập mới nhất vừa về — {'  '}
         <span className="underline font-semibold"> Xem ngay</span>
       </>
     ), 
@@ -452,6 +453,9 @@ const ProductDropdown = ({ onClose }: { onClose: () => void }) => {
                 <p className="text-xs text-flower-100 font-semibold mt-1">
                   {p.price.toLocaleString('vi-VN')}đ
                 </p>
+                <p className="text-[11px] text-gray-400">
+                  {p.stockQuantity > 0 ? `Còn ${p.stockQuantity} sản phẩm` : 'Tạm hết hàng'}
+                </p>
               </Link>
             ))}
           </div>
@@ -481,6 +485,48 @@ const Navbar = () => {
   const [cartLoading, setCartLoading] = useState(false);
   const { wishlistCount, refreshWishlist } = useWishlist();
 
+  const [searchResults, setSearchResults] = useState<ProductResponse[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setShowSearchDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!searchKeyword.trim()) {
+      setSearchResults([]);
+      setShowSearchDropdown(false);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const response = await productApi.getAll({
+          keyword: searchKeyword.trim(),
+          page: 1,
+          pageSize: 5
+        });
+        setSearchResults(response.items || []);
+        setShowSearchDropdown(true);
+      } catch (error) {
+        console.error("Error searching products:", error);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchKeyword]);
+
   const fetchCart = async () => {
     if (!isAuthenticated) return;
     setCartLoading(true);
@@ -502,6 +548,7 @@ const Navbar = () => {
   const handleSearch = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (searchKeyword.trim()) {
+      setShowSearchDropdown(false);
       navigate(`/products?keyword=${searchKeyword}`);
     }
   };
@@ -534,31 +581,120 @@ const Navbar = () => {
           {/* Logo */}
           <button
             onClick={handleLogoClick}
-            className="text-2xl font-bold text-flower-100 whitespace-nowrap"
-            style={{ fontFamily: 'Georgia, serif' }}>
-            BrickDo
+            className="text-2xl text-flower-100 whitespace-nowrap brand-wordmark">
+            3TL-Store
           </button>
 
           {/* Search bar */}
-          <form onSubmit={handleSearch} className="w-full px-6">
-            <div className="relative">
-              <input
-                type="text"
-                value={searchKeyword}
-                onChange={(e) => setSearchKeyword(e.target.value)}
-                placeholder="Tìm kiếm sản phẩm LEGO..."
-                className="w-full px-4 py-2 pl-10 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-flower-100 bg-flower-50"
-              />
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
-                fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-          </form>
+          <div ref={searchContainerRef} className="w-full px-6 relative">
+            <form onSubmit={handleSearch}>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchKeyword}
+                  onChange={(e) => setSearchKeyword(e.target.value)}
+                  onFocus={() => {
+                    if (searchKeyword.trim()) {
+                      setShowSearchDropdown(true);
+                    }
+                  }}
+                  placeholder="Tìm kiếm sản phẩm..."
+                  className="w-full px-4 py-2 pl-10 border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-flower-100 bg-flower-50"
+                />
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </form>
+
+            {/* Dropdown kết quả tìm kiếm */}
+            {showSearchDropdown && (
+              <div className="absolute left-6 right-6 mt-1 bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden max-h-96 overflow-y-auto">
+                {searchLoading ? (
+                  <div className="p-4 text-center text-gray-400 flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-5 w-5 text-flower-100" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <span>Đang tìm kiếm...</span>
+                  </div>
+                ) : searchResults.length > 0 ? (
+                  <div className="py-2">
+                    {searchResults.map((product) => (
+                      <Link
+                        key={product.id}
+                        to={`/products/${product.id}`}
+                        onClick={() => {
+                          setShowSearchDropdown(false);
+                          setSearchKeyword('');
+                        }}
+                        className="flex items-center gap-4 px-4 py-2.5 hover:bg-flower-50 transition border-b border-gray-50 last:border-0"
+                      >
+                        {/* Ảnh sản phẩm */}
+                        <div className="w-12 h-12 rounded-lg bg-gray-50 flex-shrink-0 overflow-hidden border border-gray-100">
+                          {product.imageUrl ? (
+                            <img
+                              src={getImageUrl(product.imageUrl)}
+                              alt={product.name}
+                              className="w-full h-full object-contain"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-xl">🧱</div>
+                          )}
+                        </div>
+
+                        {/* Thông tin sản phẩm */}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-sm font-semibold text-gray-800 truncate">
+                            {product.name}
+                          </h4>
+                          {product.theme && (
+                            <span className="inline-block text-[10px] bg-flower-50 text-flower-100 px-2 py-0.5 rounded-full font-medium mt-0.5">
+                              {product.theme}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Giá */}
+                        <div className="text-right">
+                          <p className="text-sm font-bold text-flower-100">
+                            {product.price.toLocaleString('vi-VN')}đ
+                          </p>
+                          {product.oldPrice && product.oldPrice > product.price && (
+                            <p className="text-xs text-gray-400 line-through">
+                              {product.oldPrice.toLocaleString('vi-VN')}đ
+                            </p>
+                          )}
+                        </div>
+                      </Link>
+                    ))}
+                    <div
+                      onClick={() => {
+                        setShowSearchDropdown(false);
+                        navigate(`/products?keyword=${searchKeyword}`);
+                      }}
+                      className="text-center py-2 text-xs font-semibold text-flower-100 hover:bg-flower-50 cursor-pointer transition border-t border-gray-100 mt-1"
+                    >
+                      Xem tất cả kết quả cho "{searchKeyword}"
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 text-center text-gray-400 text-sm">
+                    Không tìm thấy sản phẩm nào
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Right side */}
           <div className="flex items-center gap-2">
+
+            {/* Chuông thông báo (giữa ô tìm kiếm và trái tim) */}
+            {isAuthenticated && <NotificationBell />}
 
             <Link to="/wishlist"
               className="p-2 text-gray-500 hover:text-flower-100 transition relative group">
@@ -680,6 +816,14 @@ const Navbar = () => {
           <div className="max-w-7xl mx-auto px-4">
             <ul className="flex justify-center items-center gap-1 text-sm font-medium text-gray-600">
 
+              {/* Trang chủ */}
+              <li>
+                <Link to="/"
+                  className="block px-4 py-3 hover:text-flower-100 hover:border-b-2 hover:border-flower-100 transition-all whitespace-nowrap">
+                  Trang chủ
+                </Link>
+              </li>
+
               {/* Sản phẩm — có dropdown */}
               <li className="relative"
                 onMouseEnter={() => setShowProductMenu(true)}
@@ -699,9 +843,9 @@ const Navbar = () => {
               </li>
 
               {[
-                { label: 'Khuyến mãi', link: '/products?sortBy=price_asc' },
-                { label: 'Best Seller', link: '/products?isFeatured=true' },
-                { label: 'Khám phá', link: '/products?sortBy=newest' },
+                { label: 'Best Seller', link: '/best-seller' },
+                { label: 'Chương trình', link: '/campaign' },
+                { label: 'Khuyến mãi', link: '/vouchers' },
                 { label: 'Hỗ trợ', link: '/support' },
               ].map((item) => (
                 <li key={item.label}>
@@ -829,9 +973,13 @@ const Navbar = () => {
                   <button
                     onClick={async () => {
                       if (item.quantity <= 1) return;
-                      const res = await cartApi.updateQuantity(item.id, item.quantity - 1);
-                      setCart(res);
-                      refreshCart();
+                      try {
+                        const res = await cartApi.updateQuantity(item.id, item.quantity - 1);
+                        setCart(res);
+                        refreshCart();
+                      } catch (err: any) {
+                        alert(err.response?.data?.message || 'Có lỗi xảy ra');
+                      }
                     }}
                     className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-flower-50 transition text-sm disabled:opacity-30"
                     disabled={item.quantity <= 1}>
@@ -840,9 +988,13 @@ const Navbar = () => {
                   <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
                   <button
                     onClick={async () => {
-                      const res = await cartApi.updateQuantity(item.id, item.quantity + 1);
-                      setCart(res);
-                      refreshCart();
+                      try {
+                        const res = await cartApi.updateQuantity(item.id, item.quantity + 1);
+                        setCart(res);
+                        refreshCart();
+                      } catch (err: any) {
+                        alert(err.response?.data?.message || 'Có lỗi xảy ra');
+                      }
                     }}
                     className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-flower-50 transition text-sm">
                     +

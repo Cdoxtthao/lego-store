@@ -48,18 +48,27 @@ const WishlistPage = () => {
     try {
       await cartApi.addToCart(productId, 1);
       refreshCart();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Có lỗi xảy ra');
     } finally {
       setAddingCartId(null);
     }
   };
 
   const handleMoveAllToCart = async () => {
-    for (const item of items) {
-      if (item.stockQuantity > 0) {
-        await cartApi.addToCart(item.productId, 1);
+    try {
+      let addedAny = false;
+      for (const item of items) {
+        if (item.stockQuantity > 0) {
+          await cartApi.addToCart(item.productId, 1);
+          addedAny = true;
+        }
       }
+      if (addedAny) refreshCart();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Có lỗi xảy ra khi chuyển sản phẩm vào giỏ');
+      refreshCart();
     }
-    refreshCart();
   };
 
   if (loading) return (

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import axiosClient from '../../api/axiosClient';
 import { getImageUrl } from '../../utils/imageHelper';
+import { useAuth } from '../../context/AuthContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Receipt {
@@ -20,24 +21,45 @@ interface Receipt {
   supplierNote: string | null;
   createdAt: string;
   processedAt: string | null;
+  sellerId: number | null;
+  sellerName: string;
+  isFromProposal: boolean;
+}
+
+interface SupplierUser {
+  id: number;
+  fullName: string;
+  email: string;
+}
+
+interface Product {
+  id: number;
+  name: string;
+  imageUrl: string;
+  price: number;
 }
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
 const statusLabels: Record<string, string> = {
-  Pending:   '⏳ Chờ xác nhận',
-  Confirmed: '✅ Đã xác nhận',
-  Disputed:  '⚠️ Đang khiếu nại',
-  Resolved:  '🔧 Đã giải quyết',
+  Pending:         '⏳ Chờ duyệt',
+  PendingSupplier: '🚚 Chờ Supplier giao',
+  PendingSeller:   '📦 Chờ Seller nhận',
+  Confirmed:       '✅ Đã xác nhận',
+  Disputed:        '⚠️ Đang khiếu nại',
+  Resolved:        '🔧 Đã giải quyết',
 };
 const statusColors: Record<string, string> = {
-  Pending:   'bg-amber-50 text-amber-600 border-amber-200',
-  Confirmed: 'bg-emerald-50 text-emerald-600 border-emerald-200',
-  Disputed:  'bg-red-50 text-red-600 border-red-200',
-  Resolved:  'bg-blue-50 text-blue-600 border-blue-200',
+  Pending:         'bg-amber-50 text-amber-600 border-amber-200',
+  PendingSupplier: 'bg-blue-50 text-blue-600 border-blue-200',
+  PendingSeller:   'bg-yellow-50 text-yellow-600 border-yellow-200',
+  Confirmed:       'bg-emerald-50 text-emerald-600 border-emerald-200',
+  Disputed:        'bg-red-50 text-red-600 border-red-200',
+  Resolved:        'bg-purple-50 text-purple-600 border-purple-200',
 };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 const SupplierReceipts = () => {
+  const { isSeller, isSupplier } = useAuth();
   const location = useLocation();
   const params   = new URLSearchParams(location.search);
   const initStatus = params.get('status') || '';
@@ -51,6 +73,20 @@ const SupplierReceipts = () => {
   const [note, setNote]               = useState('');
   const [saving, setSaving]           = useState(false);
   const [search, setSearch]           = useState('');
+
+  // Seller Create Request Form State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [suppliers, setSuppliers]             = useState<SupplierUser[]>([]);
+  const [products, setProducts]               = useState<Product[]>([]);
+  const [createForm, setCreateForm]           = useState({
+    supplierId: '',
+    productId: '',
+    quantity: '',
+    unitPrice: '',
+    note: '',
+  });
+  const [productSearch, setProductSearch]     = useState('');
+  const [creating, setCreating]               = useState(false);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -69,6 +105,53 @@ const SupplierReceipts = () => {
   }, [filter]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    setFilter(params.get('status') || '');
+  }, [location.search]);
+
+  const fetchSuppliers = async () => {
+    try {
+      const res = await axiosClient.get('/Users/suppliers');
+      setSuppliers(res.data || []);
+    } catch { setSuppliers([]); }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const res = await axiosClient.get('/Products', { params: { pageSize: 200, page: 1 } });
+      setProducts(res.data.items || []);
+    } catch { setProducts([]); }
+  };
+
+  const openCreateModal = () => {
+    fetchSuppliers();
+    fetchProducts();
+    setCreateForm({ supplierId: '', productId: '', quantity: '', unitPrice: '', note: '' });
+    setProductSearch('');
+    setShowCreateModal(true);
+  };
+
+  const handleCreateRequest = async () => {
+    if (!createForm.supplierId || !createForm.productId || !createForm.quantity || !createForm.unitPrice) return;
+    setCreating(true);
+    try {
+      await axiosClient.post('/SupplierReceipts', {
+        supplierId: Number(createForm.supplierId),
+        productId:  Number(createForm.productId),
+        quantity:   Number(createForm.quantity),
+        unitPrice:  Number(createForm.unitPrice),
+        adminNote:  createForm.note || null,
+      });
+      setShowCreateModal(false);
+      fetchAll();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const handleAction = async () => {
     if (!selected || !actionModal) return;
@@ -103,9 +186,19 @@ const SupplierReceipts = () => {
         <div>
           <h2 className="text-xl font-bold text-gray-800">Quản lý biên lai</h2>
           <p className="text-sm text-gray-400 mt-0.5">
-            Xem và xác nhận biên lai từ Admin · Tổng {receipts.length} biên lai
+            Xem và xác nhận biên lai · Tổng {receipts.length} biên lai
           </p>
         </div>
+        {isSeller && (
+          <button
+            onClick={openCreateModal}
+            className="flex items-center gap-2 px-4 py-2.5 bg-flower-100 text-white rounded-xl text-sm font-medium hover:bg-flower-150 transition shadow-sm">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Tạo yêu cầu mới
+          </button>
+        )}
       </div>
 
       {/* Stat cards */}
@@ -211,19 +304,31 @@ const SupplierReceipts = () => {
                   <td className="px-4 py-3 text-sm font-bold text-flower-100">{r.totalAmount.toLocaleString('vi-VN')}đ</td>
                   <td className="px-4 py-3">
                     <span className={`text-xs px-2.5 py-1 rounded-full font-medium border ${statusColors[r.status] || 'bg-gray-50 text-gray-500 border-gray-200'}`}>
-                      {statusLabels[r.status] || r.status}
+                      {r.status === 'Pending' && r.isFromProposal ? '⏳ Chờ Seller duyệt' : (statusLabels[r.status] || r.status)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-400">
                     {new Date(r.createdAt).toLocaleDateString('vi-VN')}
                   </td>
                   <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
-                    {r.status === 'Pending' && (
+                    {/* Supplier actions: can ship when PendingSupplier */}
+                    {isSupplier && r.status === 'PendingSupplier' && (
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => { setSelected(r); setActionModal('confirm'); }}
                           className="text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition font-medium">
-                          Xác nhận
+                          Giao hàng
+                        </button>
+                      </div>
+                    )}
+                    
+                    {/* Seller actions: can confirm when proposal Pending or request PendingSeller */}
+                    {isSeller && ((r.isFromProposal && r.status === 'Pending') || (!r.isFromProposal && r.status === 'PendingSeller')) && (
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => { setSelected(r); setActionModal('confirm'); }}
+                          className="text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition font-medium">
+                          Xác nhận nhận hàng
                         </button>
                         <button
                           onClick={() => { setSelected(r); setActionModal('dispute'); }}
@@ -232,7 +337,12 @@ const SupplierReceipts = () => {
                         </button>
                       </div>
                     )}
-                    {r.status !== 'Pending' && (
+
+                    {/* Default: Chi tiết */}
+                    {!(
+                      (isSupplier && r.status === 'PendingSupplier') ||
+                      (isSeller && ((r.isFromProposal && r.status === 'Pending') || (!r.isFromProposal && r.status === 'PendingSeller')))
+                    ) && (
                       <button
                         onClick={() => setSelected(r)}
                         className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition">
@@ -305,16 +415,16 @@ const SupplierReceipts = () => {
                 ))}
               </div>
 
-              {/* Notes */}
+               {/* Notes */}
               {selected.adminNote && (
                 <div className="bg-blue-50 rounded-xl p-3">
-                  <p className="text-xs font-medium text-blue-600 mb-1">📝 Ghi chú từ Admin</p>
+                  <p className="text-xs font-medium text-blue-600 mb-1">📝 Ghi chú từ {selected.isFromProposal ? 'Supplier' : 'Seller'}</p>
                   <p className="text-sm text-blue-800">{selected.adminNote}</p>
                 </div>
               )}
               {selected.supplierNote && (
                 <div className="bg-amber-50 rounded-xl p-3">
-                  <p className="text-xs font-medium text-amber-600 mb-1">💬 Phản hồi của bạn</p>
+                  <p className="text-xs font-medium text-amber-600 mb-1">💬 Phản hồi từ {isSupplier ? 'bạn' : 'Supplier'}</p>
                   <p className="text-sm text-amber-800">{selected.supplierNote}</p>
                 </div>
               )}
@@ -357,7 +467,10 @@ const SupplierReceipts = () => {
                   {saving ? 'Đang gửi...' : '⚠️ Gửi khiếu nại'}
                 </button>
               )}
-              {!actionModal && selected.status === 'Pending' && (
+              {!actionModal && (
+                (isSupplier && selected.status === 'PendingSupplier') ||
+                (isSeller && ((selected.isFromProposal && selected.status === 'Pending') || (!selected.isFromProposal && selected.status === 'PendingSeller')))
+              ) && (
                 <>
                   <button
                     onClick={() => setActionModal('confirm')}
@@ -371,6 +484,141 @@ const SupplierReceipts = () => {
                   </button>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seller Create Request Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowCreateModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <h3 className="font-bold text-gray-800">📥 Tạo yêu cầu cung ứng mới</h3>
+              <button onClick={() => setShowCreateModal(false)}
+                className="text-gray-400 hover:text-gray-600 p-1">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Supplier selection */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Supplier nhận yêu cầu *</label>
+                <select
+                  value={createForm.supplierId}
+                  onChange={e => setCreateForm(f => ({ ...f, supplierId: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-flower-100"
+                >
+                  <option value="">-- Chọn Supplier --</option>
+                  {suppliers.map(s => (
+                    <option key={s.id} value={s.id}>{s.fullName} ({s.email})</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Product search & select */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Sản phẩm muốn yêu cầu *</label>
+                <input
+                  type="text"
+                  value={productSearch}
+                  onChange={e => setProductSearch(e.target.value)}
+                  placeholder="Tìm kiếm sản phẩm..."
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-flower-100 mb-2"
+                />
+                {createForm.productId ? (
+                  (() => {
+                    const selectedProd = products.find(p => p.id === Number(createForm.productId));
+                    return selectedProd ? (
+                      <div className="flex items-center gap-3 bg-flower-50 rounded-xl p-3 border border-flower-100">
+                        <div className="w-10 h-10 bg-white rounded-lg overflow-hidden flex-shrink-0">
+                          <img src={getImageUrl(selectedProd.imageUrl)} alt={selectedProd.name}
+                            className="w-full h-full object-contain p-1"
+                            onError={e => { e.currentTarget.style.display = 'none'; }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-800 truncate">{selectedProd.name}</p>
+                        </div>
+                        <button onClick={() => setCreateForm(f => ({ ...f, productId: '' }))}
+                          className="text-gray-400 hover:text-red-500 transition">
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ) : null;
+                  })()
+                ) : (
+                  <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-50">
+                    {products.filter(p => !productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase())).slice(0, 20).map(p => (
+                      <button key={p.id}
+                        onClick={() => { setCreateForm(f => ({ ...f, productId: String(p.id) })); setProductSearch(p.name); }}
+                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 transition text-left">
+                        <div className="w-8 h-8 bg-flower-50 rounded-lg overflow-hidden flex-shrink-0">
+                          <img src={getImageUrl(p.imageUrl)} alt={p.name}
+                            className="w-full h-full object-contain p-1"
+                            onError={e => { e.currentTarget.style.display = 'none'; }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-gray-700 truncate">{p.name}</p>
+                          <p className="text-xs text-gray-400">Giá bán: {p.price.toLocaleString('vi-VN')}đ</p>
+                        </div>
+                      </button>
+                    ))}
+                    {products.filter(p => !productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase())).length === 0 && (
+                      <p className="text-center py-4 text-sm text-gray-400">Không tìm thấy sản phẩm</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Quantity & price */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Số lượng yêu cầu *</label>
+                  <input type="number" min={1} value={createForm.quantity}
+                    onChange={e => setCreateForm(f => ({ ...f, quantity: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-flower-100"
+                    placeholder="0" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Đơn giá mong muốn (đ) *</label>
+                  <input type="number" min={0} value={createForm.unitPrice}
+                    onChange={e => setCreateForm(f => ({ ...f, unitPrice: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-flower-100"
+                    placeholder="0" />
+                </div>
+              </div>
+
+              {/* Note */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Ghi chú gửi Supplier</label>
+                <textarea value={createForm.note}
+                  onChange={e => setCreateForm(f => ({ ...f, note: e.target.value }))}
+                  rows={3}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-flower-100"
+                  placeholder="Mô tả thêm về yêu cầu cung ứng..." />
+              </div>
+            </div>
+
+            <div className="flex gap-3 px-6 py-4 border-t border-gray-100 sticky bottom-0 bg-white">
+              <button onClick={() => setShowCreateModal(false)}
+                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition">
+                Huỷ
+              </button>
+              <button
+                onClick={handleCreateRequest}
+                disabled={creating || !createForm.supplierId || !createForm.productId || !createForm.quantity || !createForm.unitPrice}
+                className="flex-1 py-2.5 bg-flower-100 text-white rounded-xl text-sm font-medium hover:bg-flower-150 transition disabled:opacity-50 flex items-center justify-center gap-2">
+                {creating ? (
+                  <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Đang gửi...</>
+                ) : '📤 Gửi yêu cầu'}
+              </button>
             </div>
           </div>
         </div>

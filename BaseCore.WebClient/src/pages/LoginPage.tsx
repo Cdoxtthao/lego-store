@@ -56,9 +56,8 @@ const LoginPage = () => {
       {/* Logo + tên thương hiệu ở trên đầu */}
       <div className="text-center pt-10 pb-6">
         <Link to="/">
-          <h1 className="text-4xl font-bold text-flower-100"
-            style={{ fontFamily: 'Georgia, serif', letterSpacing: '2px' }}>
-              BrickDO
+          <h1 className="text-4xl text-flower-100 brand-wordmark">
+              3TL-Store
           </h1>
         </Link>
       </div>
@@ -71,6 +70,13 @@ const LoginPage = () => {
           // exit={{ opacity: 0, x: -40 }}
           transition={{ duration: 0.35 }}
         >
+
+          <Link to="/" className="inline-flex items-center gap-1 text-sm text-flower-100 hover:text-flower-150 transition mb-4">
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Quay lại trang chủ
+          </Link>
 
           <h2 className="text-2xl font-bold text-gray-800 mb-1">Đăng nhập</h2>
           <p className="text-gray-500 text-sm mb-6">

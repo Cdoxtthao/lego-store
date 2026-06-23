@@ -76,11 +76,11 @@ const faqData = [
     questions: [
       {
         q: 'Sản phẩm có chính hãng không?',
-        a: 'Tất cả sản phẩm tại BrickDo đều là hàng chính hãng LEGO, được nhập khẩu trực tiếp và có đầy đủ tem nhãn chính hãng.'
+        a: 'Tất cả sản phẩm tại 3TL-Store đều là hàng chính hãng, được nhập khẩu trực tiếp và có đầy đủ tem nhãn chính hãng.'
       },
       {
         q: 'Sản phẩm có bảo hành không?',
-        a: 'LEGO bảo hành theo chính sách của hãng. Nếu sản phẩm bị thiếu mảnh hoặc lỗi từ nhà sản xuất, bạn có thể liên hệ trực tiếp với LEGO để được hỗ trợ.'
+        a: 'Sản phẩm được bảo hành theo chính sách của nhà sản xuất. Nếu sản phẩm bị thiếu chi tiết hoặc lỗi từ nhà sản xuất, bạn có thể liên hệ 3TL-Store để được hỗ trợ.'
       },
     ]
   },

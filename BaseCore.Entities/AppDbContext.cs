@@ -30,6 +30,11 @@ namespace BaseCore.Entities
         public DbSet<Supplier> Suppliers { get; set; }
         public DbSet<SupplierReceipt> SupplierReceipts { get; set; }
         public DbSet<SupplierProposal> SupplierProposals { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
+        public DbSet<ChildProfile> ChildProfiles { get; set; }
+        public DbSet<CreativePost> CreativePosts { get; set; }
+        public DbSet<Voucher> Vouchers { get; set; }
+        public DbSet<UserVoucher> UserVouchers { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -150,6 +155,12 @@ namespace BaseCore.Entities
                 .HasForeignKey(r => r.ProductId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            modelBuilder.Entity<SupplierReceipt>()
+                .HasOne(r => r.Seller)
+                .WithMany()
+                .HasForeignKey(r => r.SellerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // SupplierProposal
             modelBuilder.Entity<SupplierProposal>()
                 .Property(p => p.ProposedUnitPrice)
@@ -172,6 +183,12 @@ namespace BaseCore.Entities
                 .WithMany()
                 .HasForeignKey(p => p.ReceiptId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<SupplierProposal>()
+                .HasOne(p => p.Seller)
+                .WithMany()
+                .HasForeignKey(p => p.SellerId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             foreach (var property in modelBuilder.Model.GetEntityTypes()
                 .SelectMany(t => t.GetProperties())

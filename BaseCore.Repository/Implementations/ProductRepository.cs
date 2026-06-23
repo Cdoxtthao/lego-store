@@ -40,7 +40,63 @@ namespace BaseCore.Repository.Implementations
                 query = query.Where(p => p.Theme == request.Theme);
 
             if (!string.IsNullOrEmpty(request.AgeRange))
-                query = query.Where(p => p.AgeRange == request.AgeRange);
+            {
+                if (request.AgeRange.Contains('-'))
+                {
+                    if (request.AgeRange == "6-10")
+                    {
+                        query = query.Where(p => 
+                            p.AgeRange == "6+" || p.AgeRange == "8+" || p.AgeRange == "9+" || p.AgeRange == "10+" || p.AgeRange == "6-10" ||
+                            (p.Description != null && (p.Description.Contains("6 tuổi") || p.Description.Contains("7 tuổi") || p.Description.Contains("8 tuổi") || p.Description.Contains("9 tuổi") || p.Description.Contains("10 tuổi") || p.Description.Contains("6+") || p.Description.Contains("8+") || p.Description.Contains("9+") || p.Description.Contains("10+"))) ||
+                            (p.Highlights != null && (p.Highlights.Contains("6 tuổi") || p.Highlights.Contains("7 tuổi") || p.Highlights.Contains("8 tuổi") || p.Highlights.Contains("9 tuổi") || p.Highlights.Contains("10 tuổi") || p.Highlights.Contains("6+") || p.Highlights.Contains("8+") || p.Highlights.Contains("9+") || p.Highlights.Contains("10+")))
+                        );
+                    }
+                    else if (request.AgeRange == "10-12")
+                    {
+                        query = query.Where(p => 
+                            p.AgeRange == "10+" || p.AgeRange == "12+" || p.AgeRange == "10-12" ||
+                            (p.Description != null && (p.Description.Contains("10 tuổi") || p.Description.Contains("11 tuổi") || p.Description.Contains("12 tuổi") || p.Description.Contains("10+") || p.Description.Contains("12+"))) ||
+                            (p.Highlights != null && (p.Highlights.Contains("10 tuổi") || p.Highlights.Contains("11 tuổi") || p.Highlights.Contains("12 tuổi") || p.Highlights.Contains("10+") || p.Highlights.Contains("12+")))
+                        );
+                    }
+                    else if (request.AgeRange == "12-14")
+                    {
+                        query = query.Where(p => 
+                            p.AgeRange == "12+" || p.AgeRange == "14+" || p.AgeRange == "12-14" ||
+                            (p.Description != null && (p.Description.Contains("12 tuổi") || p.Description.Contains("13 tuổi") || p.Description.Contains("14 tuổi") || p.Description.Contains("12+") || p.Description.Contains("14+"))) ||
+                            (p.Highlights != null && (p.Highlights.Contains("12 tuổi") || p.Highlights.Contains("13 tuổi") || p.Highlights.Contains("14 tuổi") || p.Highlights.Contains("12+") || p.Highlights.Contains("14+")))
+                        );
+                    }
+                    else if (request.AgeRange == "14-17" || request.AgeRange == "14-18")
+                    {
+                        query = query.Where(p => 
+                            p.AgeRange == "14+" || p.AgeRange == "14-17" || p.AgeRange == "14-18" ||
+                            (p.Description != null && (p.Description.Contains("14 tuổi") || p.Description.Contains("15 tuổi") || p.Description.Contains("16 tuổi") || p.Description.Contains("17 tuổi") || p.Description.Contains("18 tuổi") || p.Description.Contains("14+"))) ||
+                            (p.Highlights != null && (p.Highlights.Contains("14 tuổi") || p.Highlights.Contains("15 tuổi") || p.Highlights.Contains("16 tuổi") || p.Highlights.Contains("17 tuổi") || p.Highlights.Contains("18 tuổi") || p.Highlights.Contains("14+")))
+                        );
+                    }
+                    else
+                    {
+                        query = query.Where(p => p.AgeRange == request.AgeRange);
+                    }
+                }
+                else
+                {
+                    query = query.Where(p => p.AgeRange == request.AgeRange || 
+                        (p.Description != null && p.Description.Contains(request.AgeRange)) ||
+                        (p.Highlights != null && p.Highlights.Contains(request.AgeRange)));
+                }
+            }
+
+            if (!string.IsNullOrEmpty(request.Gender))
+            {
+                if (request.Gender == "Nam")
+                    query = query.Where(p => p.Gender == "Nam" || p.Gender == "Khác");
+                else if (request.Gender == "Nữ")
+                    query = query.Where(p => p.Gender == "Nữ" || p.Gender == "Khác");
+                else
+                    query = query.Where(p => p.Gender == request.Gender);
+            }
 
             if (request.MinPrice.HasValue)
                 query = query.Where(p => p.Price >= request.MinPrice);
@@ -65,6 +121,9 @@ namespace BaseCore.Repository.Implementations
                                             .Sum(oi => oi.Quantity))
                                      .ThenByDescending(p => p.CreatedAt),
                 _ => query.OrderByDescending(p => p.IsFeatured)
+                                     .ThenByDescending(p => p.OrderItems
+                                                        .Where(oi => oi.Order.Status != "Cancelled")
+                                                        .Sum(oi => oi.Quantity))
                                      .ThenByDescending(p => p.CreatedAt)
             };
 

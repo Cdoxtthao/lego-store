@@ -1,4 +1,4 @@
-﻿using BaseCore.DTO.Request;
+using BaseCore.DTO.Request;
 using BaseCore.DTO.Response;
 using BaseCore.Entities;
 using BaseCore.Repository.Interfaces;
@@ -60,6 +60,15 @@ namespace BaseCore.Services.Implementations
             var product = await _productRepo.GetByIdAsync(request.ProductId);
             if (product == null) throw new Exception("Sản phẩm không tồn tại");
 
+            var existingItem = cart.CartItems.FirstOrDefault(ci => ci.ProductId == request.ProductId);
+            int currentQtyInCart = existingItem?.Quantity ?? 0;
+            int totalRequestedQty = currentQtyInCart + request.Quantity;
+
+            if (totalRequestedQty > product.StockQuantity)
+            {
+                throw new Exception($"Số lượng sản phẩm trong giỏ ({totalRequestedQty}) vượt quá tồn kho còn lại ({product.StockQuantity})");
+            }
+
             var item = new CartItem
             {
                 CartId = cart.Id,
@@ -75,9 +84,25 @@ namespace BaseCore.Services.Implementations
 
         public async Task<CartResponse> UpdateQuantityAsync(int userId, int cartItemId, int quantity)
         {
-            await _cartRepo.UpdateItemQuantityAsync(cartItemId, quantity);
+            if (quantity < 1) throw new Exception("Số lượng không hợp lệ");
+
             var cart = await _cartRepo.GetByUserIdAsync(userId);
-            return MapToResponse(cart!);
+            if (cart == null) throw new Exception("Giỏ hàng không tồn tại");
+
+            var cartItem = cart.CartItems.FirstOrDefault(ci => ci.Id == cartItemId);
+            if (cartItem == null) throw new Exception("Sản phẩm không có trong giỏ hàng");
+
+            var product = await _productRepo.GetByIdAsync(cartItem.ProductId);
+            if (product == null) throw new Exception("Sản phẩm không tồn tại");
+
+            if (quantity > product.StockQuantity)
+            {
+                throw new Exception($"Số lượng sản phẩm trong giỏ ({quantity}) vượt quá tồn kho còn lại ({product.StockQuantity})");
+            }
+
+            await _cartRepo.UpdateItemQuantityAsync(cartItemId, quantity);
+            var updatedCart = await _cartRepo.GetByUserIdAsync(userId);
+            return MapToResponse(updatedCart!);
         }
 
         public async Task<CartResponse> RemoveFromCartAsync(int userId, int cartItemId)
@@ -108,7 +133,7 @@ namespace BaseCore.Services.Implementations
                 throw new Exception("Không có sản phẩm nào được chọn");
 
             // Kiểm tra tồn kho trước
-            foreach (var item in cart.CartItems)
+            foreach (var item in itemsToCheckout)
             {
                 var product = await _productRepo.GetByIdAsync(item.ProductId);
                 if (product == null)
@@ -117,14 +142,31 @@ namespace BaseCore.Services.Implementations
                     throw new Exception($"Sản phẩm '{product.Name}' chỉ còn {product.StockQuantity} trong kho");
             }
 
+            // Áp mã giảm giá (server tự tính lại để tránh gian lận)
+            var (voucherDiscount, appliedVoucher) = await EvaluateVoucherInternalAsync(userId, request.VoucherCode, itemsToCheckout);
+
+            // Gộp ghi chú đơn + ghi chú gói quà + mã giảm giá (để seller thấy)
+            var giftFee = request.GiftFee > 0 ? request.GiftFee : 0;
+            var shippingFee = request.ShippingFee > 0 ? request.ShippingFee : 0;
+            string? voucherNote = appliedVoucher != null
+                ? $"🏷️ Mã giảm giá: {appliedVoucher.Code} (-{voucherDiscount.ToString("#,##0")}đ)"
+                : null;
+            var combinedNote = string.Join("\n",
+                new[] { request.Note, request.GiftNote, voucherNote }
+                    .Where(s => !string.IsNullOrWhiteSpace(s)));
+
+            // Tổng tiền = tiền hàng + phí ship + gói quà − giảm giá (không âm)
+            var goodsTotal = itemsToCheckout.Sum(ci => ci.Price * ci.Quantity) + shippingFee + giftFee - voucherDiscount;
+            if (goodsTotal < 0) goodsTotal = 0;
+
             // Tạo Order
             var order = new Order
             {
                 UserId = userId,
-                TotalAmount = itemsToCheckout.Sum(ci => ci.Price * ci.Quantity),
+                TotalAmount = goodsTotal,
                 ShippingAddress = request.ShippingAddress,
                 PaymentMethod = request.PaymentMethod,
-                Note = request.Note,
+                Note = string.IsNullOrWhiteSpace(combinedNote) ? null : combinedNote,
                 Status = "Pending",
                 PaymentStatus = "Unpaid",
                 CreatedAt = DateTime.UtcNow,
@@ -135,7 +177,7 @@ namespace BaseCore.Services.Implementations
             await _context.SaveChangesAsync();
 
             // Lưu OrderItems + cập nhật tồn kho
-            foreach (var item in cart.CartItems)
+            foreach (var item in itemsToCheckout)
             {
                 // Thêm OrderItem
                 _context.OrderItems.Add(new OrderItem
@@ -157,6 +199,16 @@ namespace BaseCore.Services.Implementations
 
             await _context.SaveChangesAsync();
 
+            // Đánh dấu mã giảm giá đã dùng (nếu user sở hữu); nếu chưa sở hữu mà là mã công khai thì ghi nhận đã dùng
+            if (appliedVoucher != null)
+            {
+                var uv = await _context.UserVouchers
+                    .FirstOrDefaultAsync(x => x.UserId == userId && x.VoucherId == appliedVoucher.Id && !x.IsUsed);
+                if (uv != null) uv.IsUsed = true;
+                else _context.UserVouchers.Add(new UserVoucher { UserId = userId, VoucherId = appliedVoucher.Id, IsUsed = true, CreatedAt = DateTime.UtcNow });
+                await _context.SaveChangesAsync();
+            }
+
             // ← Xóa chỉ những item được chọn
             foreach (var item in itemsToCheckout)
             {
@@ -172,7 +224,7 @@ namespace BaseCore.Services.Implementations
                 ShippingAddress = order.ShippingAddress,
                 PaymentMethod = order.PaymentMethod,
                 CreatedAt = order.CreatedAt,
-                Items = cart.CartItems.Select(ci => new OrderItemResponse
+                Items = itemsToCheckout.Select(ci => new OrderItemResponse
                 {
                     ProductId = ci.ProductId,
                     ProductName = ci.Product.Name,
@@ -182,6 +234,74 @@ namespace BaseCore.Services.Implementations
                     Subtotal = ci.Price * ci.Quantity,
                 }).ToList(),
             };
+        }
+
+        // ===== Mã giảm giá =====
+        private static List<int> ParseIds(string? csv)
+            => string.IsNullOrWhiteSpace(csv) ? new List<int>()
+               : csv.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => int.TryParse(s.Trim(), out var n) ? n : -1)
+                    .Where(n => n > 0).ToList();
+
+        // Tính số tiền giảm + voucher hợp lệ (dùng chung cho apply & checkout)
+        private async Task<(int discount, Voucher? voucher)> EvaluateVoucherInternalAsync(int userId, string? code, List<CartItem> items)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return (0, null);
+            var now = DateTime.UtcNow;
+            var voucher = await _context.Vouchers.FirstOrDefaultAsync(v => v.Code == code.Trim());
+            if (voucher == null || !voucher.IsActive) return (0, null);
+            if (now < voucher.StartDate || now > voucher.EndDate) return (0, null);
+
+            // Mã sinh nhật/được tặng: phải thuộc user. Mã công khai khác: ai cũng dùng.
+            var owned = await _context.UserVouchers.AnyAsync(x => x.UserId == userId && x.VoucherId == voucher.Id && !x.IsUsed);
+            if (!owned && voucher.ScopeType == "Birthday") return (0, null);
+
+            var catIds = ParseIds(voucher.CategoryIds);
+            var themeIds = ParseIds(voucher.ThemeIds);
+            var prodIds = ParseIds(voucher.ProductIds);
+
+            decimal eligible = 0;
+            foreach (var ci in items)
+            {
+                bool ok;
+                if (voucher.ScopeType == "Specific")
+                {
+                    var p = ci.Product;
+                    ok = prodIds.Contains(ci.ProductId)
+                         || catIds.Contains(p.CategoryId)
+                         || (p.ThemeId.HasValue && themeIds.Contains(p.ThemeId.Value));
+                }
+                else ok = true; // All / Birthday → áp dụng toàn bộ
+                if (ok) eligible += ci.Price * ci.Quantity;
+            }
+            if (eligible <= 0) return (0, null);
+            var discount = (int)Math.Round(eligible * voucher.DiscountPercent / 100m);
+            return (discount, voucher);
+        }
+
+        public async Task<VoucherApplyResult> ComputeVoucherDiscountAsync(int userId, string code, List<int>? selectedItemIds)
+        {
+            var cart = await _cartRepo.GetByUserIdAsync(userId);
+            if (cart == null || !cart.CartItems.Any())
+                return new VoucherApplyResult { Valid = false, Message = "Giỏ hàng trống" };
+            var items = selectedItemIds?.Any() == true
+                ? cart.CartItems.Where(ci => selectedItemIds.Contains(ci.Id)).ToList()
+                : cart.CartItems.ToList();
+            if (!items.Any()) return new VoucherApplyResult { Valid = false, Message = "Chưa chọn sản phẩm" };
+
+            var now = DateTime.UtcNow;
+            var v = await _context.Vouchers.FirstOrDefaultAsync(x => x.Code == (code ?? "").Trim());
+            if (v == null) return new VoucherApplyResult { Valid = false, Message = "Mã không tồn tại" };
+            if (!v.IsActive) return new VoucherApplyResult { Valid = false, Message = "Mã không còn hiệu lực" };
+            if (now < v.StartDate) return new VoucherApplyResult { Valid = false, Message = "Mã chưa đến ngày sử dụng" };
+            if (now > v.EndDate) return new VoucherApplyResult { Valid = false, Message = "Mã đã hết hạn" };
+            var owned = await _context.UserVouchers.AnyAsync(x => x.UserId == userId && x.VoucherId == v.Id && !x.IsUsed);
+            if (!owned && v.ScopeType == "Birthday") return new VoucherApplyResult { Valid = false, Message = "Mã này không dành cho bạn" };
+
+            var (discount, voucher) = await EvaluateVoucherInternalAsync(userId, code, items);
+            if (voucher == null || discount <= 0)
+                return new VoucherApplyResult { Valid = false, Message = "Mã không áp dụng cho sản phẩm đã chọn" };
+            return new VoucherApplyResult { Valid = true, Discount = discount, VoucherId = voucher.Id, Message = $"Đã áp dụng — giảm {discount.ToString("#,##0")}đ" };
         }
     }
 }

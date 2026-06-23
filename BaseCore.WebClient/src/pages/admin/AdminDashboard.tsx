@@ -54,7 +54,7 @@ const menuItems = [
     roles: ['Admin', 'Seller'],
   },
   {
-    label: 'Nhập kho',  
+    label: 'Nhập kho',
     path: '/admin/stock',
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -62,7 +62,7 @@ const menuItems = [
           d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
       </svg>
     ),
-    roles: ['Admin', 'Supplier'],
+    roles: [],
   },
   {
     label: 'Biên lai',
@@ -73,7 +73,7 @@ const menuItems = [
           d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
       </svg>
     ),
-    roles: ['Admin', 'Supplier'],
+    roles: ['Admin', 'Supplier', 'Seller'],
   },
   {
     label: 'Đề nghị',
@@ -87,7 +87,7 @@ const menuItems = [
     roles: ['Supplier'],
   },
   {
-    label: 'Hàng trả lại',  
+    label: 'Hàng trả lại',
     path: '/admin/returns',
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -95,7 +95,7 @@ const menuItems = [
           d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
       </svg>
     ),
-    roles: ['Admin'],
+    roles: [],
   },
   {
     label: 'Người dùng',
@@ -128,7 +128,7 @@ const menuItems = [
           d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
       </svg>
     ),
-    roles: ['Admin'],
+    roles: ['Admin', 'Seller'],
   },
   {
       label: 'Tin nhắn',
@@ -139,7 +139,7 @@ const menuItems = [
             d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
         </svg>
       ),
-      roles: ['Admin', 'Seller'],
+      roles: ['Seller'],
   },
   {
     label: 'Cài đặt',
@@ -152,7 +152,7 @@ const menuItems = [
           d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
       </svg>
     ),
-    roles: ['Admin'],
+    roles: [],
   },
 ];
 
@@ -292,22 +292,24 @@ const AdminDashboard = () => {
     <div className="flex h-screen bg-gray-50 overflow-hidden">
 
       {/* Sidebar */}
-      <aside className={`${collapsed ? 'w-16' : 'w-60'} bg-white border-r border-gray-100 flex flex-col transition-all duration-300 flex-shrink-0`}>
+      <aside className={`${collapsed ? 'w-16' : 'w-60'} bg-flower-50 border-r border-flower-100/20 flex flex-col transition-all duration-300 flex-shrink-0`}>
 
         {/* Logo */}
-        <div className="flex items-center justify-between px-4 py-5 border-b border-gray-100">
+        <div className="flex items-center justify-between px-4 py-5 border-b border-flower-100/20">
           {!collapsed && (
-            <Link to="/" className="text-lg font-bold text-flower-100"
-              style={{ fontFamily: 'Georgia, serif' }}>
-              {isSupplier ? 'BrickDo Supplier' : 'BrickDo Admin'}
+            <Link to="/" className="flex items-center gap-1.5 text-lg font-bold text-flower-100 brand-wordmark whitespace-nowrap">
+              <span>3TL-Store</span>
+              <span className="brand-role text-[10px] font-semibold px-1.5 py-0.5 bg-flower-100 text-white rounded flex-shrink-0">
+                {isSupplier ? 'SUPPLIER' : isSeller ? 'SELLER' : 'ADMIN'}
+              </span>
             </Link>
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition">
+            className="p-1.5 text-flower-100 hover:text-flower-150 hover:bg-white/55 rounded-lg transition">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d={collapsed ? "M13 5l7 7-7 7M5 5l7 7-7 7" : "M11 19l-7-7 7-7m8 14l-7-7 7-7"} />
+                d={collapsed ? "M13 5l7 7-7 7" : "M11 19l-7-7 7-7m8 14l-7-7 7-7"} />
             </svg>
           </button>
         </div>
@@ -320,8 +322,8 @@ const AdminDashboard = () => {
               to={item.path}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition
                 ${isActive(item.path)
-                  ? 'bg-flower-50 text-flower-100 font-medium'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'}`}
+                  ? 'bg-flower-100 text-white font-medium shadow-sm'
+                  : 'text-gray-600 hover:bg-white/40 hover:text-gray-800'}`}
             >
               {item.icon}
               {!collapsed && <span className="text-sm">{item.label}</span>}
@@ -561,36 +563,55 @@ const AdminDashboard = () => {
 };
 
 const DashboardHome = () => {
+  const { isAdmin, isSeller } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<any>(null);
   const [revenueChart, setRevenueChart] = useState<any[]>([]);
-  const [orderStatusChart, setOrderStatusChart] = useState<any[]>([]);
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // States for revenue details modal
+  const [showRevenueDetails, setShowRevenueDetails] = useState(false);
+  const [revenueDetailsList, setRevenueDetailsList] = useState<any[]>([]);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+
+  const fetchAll = async () => {
+    try {
+      const [s, r, t, ro] = await Promise.all([
+        dashboardApi.getStats(),
+        dashboardApi.getRevenueChart(),
+        dashboardApi.getTopProducts(),
+        dashboardApi.getRecentOrders(),
+      ]);
+      setStats(s);
+      setRevenueChart(r);
+      setTopProducts(t);
+      setRecentOrders(ro);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        const [s, r, o, t, ro] = await Promise.all([
-          dashboardApi.getStats(),
-          dashboardApi.getRevenueChart(),
-          dashboardApi.getOrderStatusChart(),
-          dashboardApi.getTopProducts(),
-          dashboardApi.getRecentOrders(),
-        ]);
-        setStats(s);
-        setRevenueChart(r);
-        setOrderStatusChart(o);
-        setTopProducts(t);
-        setRecentOrders(ro);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchAll();
   }, []);
+
+  const handleRevenueClick = async () => {
+    if (!isAdmin) return;
+    setShowRevenueDetails(true);
+    setDetailsLoading(true);
+    try {
+      const res = await axiosClient.get('/Dashboard/revenue-details');
+      setRevenueDetailsList(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
 
   const statusColors: Record<string, string> = {
     Pending:   '#F59E0B',
@@ -609,79 +630,112 @@ const DashboardHome = () => {
   };
 
   if (loading) return (
-    <div className="grid grid-cols-4 gap-5">
-      {[...Array(8)].map((_, i) => (
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+      {[...Array(7)].map((_, i) => (
         <div key={i} className="h-28 bg-gray-100 rounded-2xl animate-pulse" />
       ))}
     </div>
   );
 
+  const cards = [
+    {
+      label: 'Lãi (Doanh thu)',
+      value: stats?.totalProfit !== undefined ? `${stats.totalProfit.toLocaleString('vi-VN')}đ` : '0đ',
+      icon: '💰',
+      color: 'bg-flower-100 text-white',
+      clickable: isAdmin,
+      onClick: handleRevenueClick,
+      tooltip: isAdmin ? 'Click để xem chi tiết doanh thu từng sản phẩm' : undefined
+    },
+    {
+      label: 'Đơn hàng',
+      value: stats?.totalOrders?.toString() || '0',
+      icon: '🛒',
+      color: 'bg-blue-100 text-blue-700',
+      clickable: true,
+      onClick: () => navigate('/admin/orders')
+    },
+    {
+      label: 'Chờ xác nhận',
+      value: stats?.pendingOrders?.toString() || '0',
+      icon: '⏳',
+      color: 'bg-yellow-100 text-yellow-700',
+      clickable: true,
+      onClick: () => navigate('/admin/orders?status=Pending')
+    },
+    {
+      label: 'Đơn hàng đã hủy',
+      value: stats?.cancelledOrders?.toString() || '0',
+      icon: '❌',
+      color: 'bg-red-100 text-red-700',
+      clickable: true,
+      onClick: () => navigate('/admin/orders?status=Cancelled')
+    },
+    {
+      label: 'Đã hoàn',
+      value: stats?.deliveredOrders?.toString() || '0',
+      icon: '🎉',
+      color: 'bg-emerald-100 text-emerald-700',
+      clickable: true,
+      onClick: () => navigate('/admin/orders?status=Delivered')
+    },
+    {
+      label: 'Biên lai đang chờ',
+      value: stats?.pendingReceipts?.toString() || '0',
+      icon: '📦',
+      color: 'bg-indigo-100 text-indigo-700',
+      clickable: true,
+      onClick: () => navigate('/admin/receipts')
+    },
+    {
+      label: 'Tin nhắn chờ',
+      value: stats?.waitingMessages?.toString() || '0',
+      icon: '💬',
+      color: 'bg-purple-100 text-purple-700',
+      clickable: true,
+      onClick: () => navigate('/admin/chat')
+    }
+  ];
+
   return (
     <div className="space-y-6">
 
-      {/* Stats cards */}
-      <div className="grid grid-cols-4 gap-5">
-        {[
-          {
-            label: 'Tổng sản phẩm',
-            value: stats?.totalProducts?.toLocaleString() || '0',
-            icon: '📦',
-            color: 'bg-blue-50 text-blue-600',
-            change: `+${stats?.newProductsThisWeek || 0} tuần này`,
-            changeColor: 'text-blue-500',
-          },
-          {
-            label: 'Đơn hàng hôm nay',
-            value: stats?.newOrdersToday?.toLocaleString() || '0',
-            icon: '🛒',
-            color: 'bg-green-50 text-green-600',
-            change: `${stats?.pendingOrders || 0} chờ xử lý`,
-            changeColor: 'text-orange-500',
-          },
-          {
-            label: 'Người dùng',
-            value: stats?.totalUsers?.toLocaleString() || '0',
-            icon: '👥',
-            color: 'bg-purple-50 text-purple-600',
-            change: `+${stats?.newUsersThisWeek || 0} tuần này`,
-            changeColor: 'text-purple-500',
-          },
-          {
-            label: 'Doanh thu tháng',
-            value: stats?.revenueThisMonth
-              ? `${(stats.revenueThisMonth / 1000000).toFixed(1)}M`
-              : '0',
-            icon: '💰',
-            color: 'bg-flower-50 text-flower-100',
-            change: `${stats?.revenueGrowth >= 0 ? '+' : ''}${stats?.revenueGrowth || 0}% so với tháng trước`,
-            changeColor: stats?.revenueGrowth >= 0 ? 'text-green-500' : 'text-red-500',
-          },
-        ].map(stat => (
-          <div key={stat.label}
-            className="bg-white rounded-2xl p-5 border border-gray-100 hover:shadow-md transition">
-            <div className={`inline-flex p-2.5 rounded-xl ${stat.color} mb-3`}>
-              <span className="text-xl">{stat.icon}</span>
+      {/* Stats cards - Alternating between pink and white */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+        {cards.map((card, index) => {
+          const isPink = index % 2 === 0;
+          return (
+            <div
+              key={card.label}
+              onClick={card.onClick}
+              title={card.tooltip}
+              className={`rounded-2xl p-4 border transition-all duration-200
+                ${isPink ? 'bg-flower-50 border-flower-100/30' : 'bg-white border-gray-150'}
+                ${card.clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5' : 'cursor-default'}`}
+            >
+              <div className={`inline-flex p-2 rounded-xl ${card.color} mb-3`}>
+                <span className="text-lg">{card.icon}</span>
+              </div>
+              <p className="text-lg font-bold text-gray-800 truncate" title={card.value}>{card.value}</p>
+              <p className="text-xs text-gray-500 mt-1 font-semibold">{card.label}</p>
             </div>
-            <p className="text-2xl font-bold text-gray-800">{stat.value}</p>
-            <p className="text-sm text-gray-500 mt-0.5">{stat.label}</p>
-            <p className={`text-xs mt-1 ${stat.changeColor}`}>{stat.change}</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Charts row 1 */}
+      {/* Chart and Top Products side-by-side */}
       <div className="grid grid-cols-3 gap-5">
 
-        {/* Biểu đồ doanh thu 6 tháng */}
+        {/* 7-day revenue parabol line chart */}
         <div className="col-span-2 bg-white rounded-2xl border border-gray-100 p-5">
-          <h3 className="font-bold text-gray-800 mb-4">📈 Doanh thu 6 tháng gần nhất</h3>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={revenueChart}>
+          <h3 className="font-bold text-gray-800 mb-4">📈 Doanh thu 7 ngày gần nhất (tiền đồng)</h3>
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={revenueChart}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
               <YAxis
                 tick={{ fontSize: 11 }}
-                tickFormatter={(v) => `${(v / 1000000).toFixed(0)}M`}
+                tickFormatter={(v) => `${(v / 1000).toLocaleString('vi-VN')}k`}
               />
               <Tooltip
                 formatter={(value: any) => [
@@ -689,115 +743,66 @@ const DashboardHome = () => {
                   'Doanh thu'
                 ]}
               />
-              <Bar dataKey="revenue" fill="#E4959A" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Biểu đồ trạng thái đơn hàng */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-5">
-          <h3 className="font-bold text-gray-800 mb-4">🥧 Trạng thái đơn hàng</h3>
-          <ResponsiveContainer width="100%" height={180}>
-            <PieChart>
-              <Pie
-                data={orderStatusChart.filter(d => d.count > 0)}
-                dataKey="count"
-                nameKey="status"
-                cx="50%"
-                cy="50%"
-                outerRadius={70}
-                label={({ name, percent }: any) =>
-                  `${statusLabels[name] || name} ${(percent * 100).toFixed(0)}%`
-                }
-                labelLine={false}>
-                {orderStatusChart.map((entry: any, index: number) => (
-                  <Cell
-                    key={'cell-${index}'}
-                    fill={statusColors[entry.status] || '#ccc'}
-                  />
-                ))}
-              </Pie>
-              <Tooltip
-                formatter={(value, name) => [value, statusLabels[name as string] || name]}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-
-          {/* Legend */}
-          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 justify-center">
-            {orderStatusChart.filter(d => d.count > 0).map(d => (
-              <div key={d.status} className="flex items-center gap-1">
-                <div className="w-2.5 h-2.5 rounded-full"
-                  style={{ background: statusColors[d.status] }} />
-                <span className="text-xs text-gray-500">
-                  {statusLabels[d.status]}: {d.count}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Charts row 2 */}
-      <div className="grid grid-cols-3 gap-5">
-
-        {/* Biểu đồ đơn hàng theo tháng */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-5">
-          <h3 className="font-bold text-gray-800 mb-4">📊 Số đơn hàng</h3>
-          <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={revenueChart}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip />
               <Line
                 type="monotone"
-                dataKey="orderCount"
+                dataKey="revenue"
                 stroke="#E4959A"
-                strokeWidth={2}
-                dot={{ fill: '#E4959A', r: 4 }}
-                name="Đơn hàng"
+                strokeWidth={3}
+                dot={{ fill: '#E4959A', r: 5 }}
+                activeDot={{ r: 8 }}
+                name="Doanh thu"
               />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
         {/* Top sản phẩm bán chạy */}
-        <div className="col-span-2 bg-white rounded-2xl border border-gray-100 p-5">
+        <div className="bg-white rounded-2xl border border-gray-100 p-5">
           <h3 className="font-bold text-gray-800 mb-4">🏆 Top sản phẩm bán chạy</h3>
           {topProducts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-32 text-gray-400">
+            <div className="flex flex-col items-center justify-center h-48 text-gray-400">
               <span className="text-3xl mb-2">📦</span>
               <p className="text-sm">Chưa có dữ liệu bán hàng</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4 max-h-[260px] overflow-y-auto pr-1">
               {topProducts.map((p, i) => (
-                <div key={p.productId} className="flex items-center gap-3">
-                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0
+                <div
+                  key={p.productId}
+                  onClick={() => navigate(`/admin/products?keyword=${encodeURIComponent(p.productName)}`)}
+                  className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-1.5 rounded-xl transition"
+                  title="Click để tìm kiếm sản phẩm"
+                >
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0
                     ${i === 0 ? 'bg-yellow-400 text-white'
                     : i === 1 ? 'bg-gray-300 text-white'
                     : i === 2 ? 'bg-amber-600 text-white'
                     : 'bg-gray-100 text-gray-500'}`}>
                     {i + 1}
                   </span>
-                  <div className="w-10 h-10 flex-shrink-0 bg-flower-50 rounded-lg overflow-hidden">
-                    <img
-                      src={getImageUrl(p.productImage)}
-                      alt={p.productName}
-                      className="w-full h-full object-contain p-1"
-                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                    />
+                  <div className="w-10 h-10 flex-shrink-0 bg-flower-50 rounded-lg overflow-hidden flex items-center justify-center">
+                    {p.productImage ? (
+                      <img
+                        src={getImageUrl(p.productImage)}
+                        alt={p.productName}
+                        className="w-full h-full object-contain p-1"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    ) : (
+                      <span className="text-xl">🧱</span>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 line-clamp-1">{p.productName}</p>
-                    <p className="text-xs text-gray-400">Đã bán: {p.totalSold} sp</p>
+                    <p className="text-xs font-semibold text-gray-800 truncate">{p.productName}</p>
+                    <p className="text-[10px] text-gray-400">Đã bán: {p.totalSold} sp</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-bold text-flower-100">
-                      {(p.totalRevenue / 1000000).toFixed(1)}M
+                    <p className="text-xs font-bold text-flower-100">
+                      {p.totalRevenue >= 1000000 
+                        ? `${(p.totalRevenue / 1000000).toFixed(1)}M` 
+                        : `${(p.totalRevenue / 1000).toFixed(0)}k`}
                     </p>
-                    <p className="text-xs text-gray-400">doanh thu</p>
+                    <p className="text-[9px] text-gray-400">doanh thu</p>
                   </div>
                 </div>
               ))}
@@ -826,20 +831,30 @@ const DashboardHome = () => {
               <tr className="border-b border-gray-100">
                 <th className="text-left pb-2 text-xs font-semibold text-gray-400 uppercase">Mã đơn</th>
                 <th className="text-left pb-2 text-xs font-semibold text-gray-400 uppercase">Khách hàng</th>
-                <th className="text-left pb-2 text-xs font-semibold text-gray-400 uppercase">Tổng tiền</th>
+                <th className="text-left pb-2 text-xs font-semibold text-gray-400 uppercase">Doanh thu</th>
                 <th className="text-left pb-2 text-xs font-semibold text-gray-400 uppercase">Trạng thái</th>
                 <th className="text-left pb-2 text-xs font-semibold text-gray-400 uppercase">Ngày tạo</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {recentOrders.map(order => (
-                <tr key={order.id} className="hover:bg-gray-50 transition">
+                <tr
+                  key={order.id}
+                  onClick={() => navigate(`/admin/orders`)}
+                  className="hover:bg-gray-50 transition cursor-pointer"
+                >
                   <td className="py-2.5 text-sm font-semibold text-flower-100">
                     #{order.id}
                   </td>
                   <td className="py-2.5 text-sm text-gray-700">{order.customerName}</td>
-                  <td className="py-2.5 text-sm font-medium text-gray-800">
-                    {order.totalAmount.toLocaleString('vi-VN')}đ
+                  <td className="py-2.5 text-sm font-medium">
+                    {order.revenue === 0 ? (
+                      <span className="text-gray-400">-</span>
+                    ) : (
+                      <span className={order.revenue < 0 ? 'text-red-500' : 'text-gray-800'}>
+                        {order.revenue.toLocaleString('vi-VN')}đ
+                      </span>
+                    )}
                   </td>
                   <td className="py-2.5">
                     <span className={`text-xs px-2.5 py-1 rounded-full font-medium`}
@@ -859,6 +874,95 @@ const DashboardHome = () => {
           </table>
         )}
       </div>
+
+      {/* Revenue Details Modal */}
+      {showRevenueDetails && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl border border-gray-100">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-flower-50/50">
+              <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
+                💰 Chi tiết doanh thu & lợi nhuận sản phẩm
+              </h3>
+              <button
+                onClick={() => setShowRevenueDetails(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              {detailsLoading ? (
+                <div className="space-y-4">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />
+                  ))}
+                </div>
+              ) : revenueDetailsList.length === 0 ? (
+                <p className="text-center py-8 text-gray-400 text-sm">Chưa có dữ liệu lợi nhuận sản phẩm nào.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200 text-gray-400 font-semibold uppercase text-[11px] tracking-wider text-left">
+                        <th className="pb-3 pl-2">Sản phẩm</th>
+                        <th className="pb-3 text-center">Số lượng bán</th>
+                        <th className="pb-3 text-right">Giá bán TB</th>
+                        <th className="pb-3 text-right">Giá nhập (vốn)</th>
+                        <th className="pb-3 text-right pr-2">Lợi nhuận (lãi)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {revenueDetailsList.map((item) => (
+                        <tr key={item.productId} className="hover:bg-gray-50/50 transition">
+                          <td className="py-3.5 pl-2 flex items-center gap-3">
+                            <div className="w-10 h-10 bg-flower-50 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center border border-flower-100/10">
+                              {item.productImage ? (
+                                <img
+                                  src={getImageUrl(item.productImage)}
+                                  alt={item.productName}
+                                  className="w-full h-full object-contain p-1"
+                                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                />
+                              ) : (
+                                <span className="text-xl">🧱</span>
+                              )}
+                            </div>
+                            <span className="font-medium text-gray-800 line-clamp-1">{item.productName}</span>
+                          </td>
+                          <td className="py-3.5 text-center font-semibold text-gray-700">{item.quantity}</td>
+                          <td className="py-3.5 text-right font-medium text-gray-800">
+                            {Math.round(item.averagePrice).toLocaleString('vi-VN')}đ
+                          </td>
+                          <td className="py-3.5 text-right text-gray-500">
+                            {item.importPrice.toLocaleString('vi-VN')}đ
+                          </td>
+                          <td className="py-3.5 text-right pr-2">
+                            <span className={`font-bold ${item.profit >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                              {item.profit >= 0 ? '+' : ''}{item.profit.toLocaleString('vi-VN')}đ
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end bg-gray-50">
+              <button
+                onClick={() => setShowRevenueDetails(false)}
+                className="px-5 py-2 bg-flower-100 text-white rounded-xl text-sm font-semibold hover:bg-flower-150 transition"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
@@ -928,7 +1032,7 @@ const SupplierDashboardHome = () => {
     },
     {
       label: 'Đề nghị được chấp nhận',
-      value: proposalStats?.approved ?? 0,
+      value: (proposalStats?.approved ?? 0) + (proposalStats?.completed ?? 0),
       icon: '🎉',
       color: 'from-violet-400 to-purple-500',
       bg: 'bg-violet-50',
@@ -969,7 +1073,7 @@ const SupplierDashboardHome = () => {
         <div className="relative z-10">
           <p className="text-sm font-medium opacity-80 mb-1">Chào mừng trở lại,</p>
           <h1 className="text-2xl font-bold mb-1">{user?.fullName} 👋</h1>
-          <p className="text-sm opacity-75">Nhà cung cấp · BrickDo Supplier Portal</p>
+          <p className="text-sm opacity-75">Nhà cung cấp · <span className="brand-wordmark">3TL-Store</span> <span className="brand-role">SUPPLIER</span></p>
         </div>
         <div className="absolute -right-8 -top-8 w-40 h-40 bg-white/10 rounded-full" />
         <div className="absolute -right-4 -bottom-12 w-56 h-56 bg-white/10 rounded-full" />

@@ -14,7 +14,8 @@ namespace BaseCore.Repository.Implementations
                 .Where(c => c.IsActive)
                 .Include(c => c.Products)
                 .Include(c => c.CategoryThemes).ThenInclude(ct => ct.Theme)
-                .OrderBy(c => c.Name)
+                .OrderByDescending(c => c.Name == "Lego")
+                .ThenBy(c => c.Name)
                 .AsNoTracking()
                 .ToListAsync();
 

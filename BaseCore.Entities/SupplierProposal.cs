@@ -48,8 +48,12 @@ public class SupplierProposal
     /// <summary>ID biên lai được tạo từ đề nghị này (nếu Completed)</summary>
     public int? ReceiptId { get; set; }
 
+    /// <summary>ID của Seller nhận đề nghị</summary>
+    public int? SellerId { get; set; }
+
     // Navigation
     public BaseCore.Entities.User Supplier { get; set; } = null!;
     public BaseCore.Entities.Product Product { get; set; } = null!;
     public SupplierReceipt? Receipt { get; set; }
+    public BaseCore.Entities.User? Seller { get; set; }
 }

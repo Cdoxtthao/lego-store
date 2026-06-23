@@ -5,7 +5,10 @@ import { getImageUrl } from '../../utils/imageHelper';
 import { productApi } from '../../api/productApi';
 import { ProductResponse } from '../../types';
 import axiosClient from '../../api/axiosClient';
+import { useAuth } from '../../context/AuthContext';
+
 const AdminCategories = () => {
+  const { isAdmin, isSeller } = useAuth();
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCatModal, setShowCatModal] = useState(false);
@@ -113,6 +116,7 @@ const AdminCategories = () => {
             {selectedCategory && ` · ${themes.length} chủ đề trong "${selectedCategory.name}"`}
           </p>
         </div>
+        {(isAdmin || isSeller) && (
         <button
           onClick={() => { setEditCategory(null); setShowCatModal(true); }}
           className="flex items-center gap-2 px-4 py-2.5 bg-flower-100 text-white rounded-xl text-sm font-medium hover:bg-flower-150 transition">
@@ -121,6 +125,7 @@ const AdminCategories = () => {
           </svg>
           Thêm danh mục
         </button>
+        )}
       </div>
 
       {/* Layout */}
@@ -136,11 +141,13 @@ const AdminCategories = () => {
             <div className="flex flex-col items-center justify-center py-24 text-gray-400">
               <span className="text-6xl mb-4">🏷️</span>
               <p className="text-lg font-medium">Chưa có danh mục nào</p>
+              {(isAdmin || isSeller) && (
               <button
                 onClick={() => { setEditCategory(null); setShowCatModal(true); }}
                 className="mt-4 px-6 py-2.5 bg-flower-100 text-white rounded-full text-sm hover:bg-flower-150 transition">
                 Thêm danh mục đầu tiên
               </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-4">
@@ -165,6 +172,7 @@ const AdminCategories = () => {
 
                     {/* Hover actions */}
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-3">
+                      {(isAdmin || isSeller) && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditCategory(cat); setShowCatModal(true); }}
                         className="p-2 bg-white rounded-xl text-blue-500 hover:bg-blue-50 transition">
@@ -173,6 +181,8 @@ const AdminCategories = () => {
                             d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </button>
+                      )}
+                      {(isAdmin || isSeller) && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setDeleteCatId(cat.id); setDeleteCatError(''); }}
                         className="p-2 bg-white rounded-xl text-red-500 hover:bg-red-50 transition">
@@ -181,6 +191,7 @@ const AdminCategories = () => {
                             d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                       </button>
+                      )}
                     </div>
                   </div>
 
@@ -242,6 +253,7 @@ const AdminCategories = () => {
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
                   🏷️ Chủ đề · {selectedCategory.name}
                 </h3>
+                {(isAdmin || isSeller) && (
                 <button
                   onClick={() => { setEditTheme(null); setShowThemeModal(true); }}
                   className="flex items-center gap-1.5 px-3 py-2 bg-flower-100 text-white rounded-xl text-xs font-medium hover:bg-flower-150 transition">
@@ -250,6 +262,7 @@ const AdminCategories = () => {
                   </svg>
                   Thêm chủ đề
                 </button>
+                )}
               </div>
 
               <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
@@ -263,11 +276,13 @@ const AdminCategories = () => {
                   <div className="flex flex-col items-center justify-center py-12 text-gray-400">
                     <span className="text-4xl mb-3">🏷️</span>
                     <p className="text-sm font-medium">Chưa có chủ đề nào</p>
+                    {(isAdmin || isSeller) && (
                     <button
                       onClick={() => { setEditTheme(null); setShowThemeModal(true); }}
                       className="mt-3 px-4 py-2 bg-flower-100 text-white rounded-full text-xs hover:bg-flower-150 transition">
                       Thêm chủ đề đầu tiên
                     </button>
+                    )}
                   </div>
                 ) : (
                   <table className="w-full">
@@ -292,6 +307,7 @@ const AdminCategories = () => {
                           </td>
                           <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-2">
+                              {(isAdmin || isSeller) && (
                               <button
                                 onClick={() => { setEditTheme(theme); setShowThemeModal(true); }}
                                 className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition">
@@ -300,6 +316,8 @@ const AdminCategories = () => {
                                     d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
                               </button>
+                              )}
+                              {(isAdmin || isSeller) && (
                               <button
                                 onClick={() => { setDeleteThemeId(theme.id); setDeleteThemeError(''); }}
                                 title="Gỡ khỏi danh mục này"
@@ -309,6 +327,7 @@ const AdminCategories = () => {
                                     d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                 </svg>
                               </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -557,7 +576,7 @@ const CategoryModal = ({
             </label>
             <input type="text" value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="VD: LEGO, Technic, Star Wars..."
+              placeholder="VD: Lego, Robot, Gấu bông..."
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-flower-100" />
           </div>
 

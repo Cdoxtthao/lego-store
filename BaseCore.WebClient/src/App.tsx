@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { AnimatePresence } from "framer-motion";
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
+import { NotificationProvider } from './context/NotificationContext';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -16,6 +17,10 @@ import CartPage from './pages/CartPage';
 import ProfilePage from './pages/ProfilePage';
 import WishlistPage from './pages/WishlistPage';
 import SupportPage from './pages/SupportPage';
+import BestSellerPage from './pages/BestSellerPage';
+import CampaignPage from './pages/CampaignPage';
+import VouchersPage from './pages/VouchersPage';
+import CreativeCornerPage from './pages/CreativeCornerPage';
 
 // Components
 import Navbar from './components/Navbar';
@@ -28,11 +33,19 @@ import AdminCategories from './pages/admin/AdminCategories';
 import AdminSettings from './pages/admin/AdminSettings';
 import AdminChat from './pages/admin/AdminChat';
 import AdminPromotions from './pages/admin/AdminPromotions';
+import SellerPromotions from './pages/admin/SellerPromotions';
 import AdminStock from './pages/admin/AdminStock';
 import AdminReturns from './pages/admin/AdminReturns';
 import AdminSuppliers from './pages/admin/AdminSuppliers';
 import SupplierReceipts from './pages/admin/SupplierReceipts';
 import SupplierProposals from './pages/admin/SupplierProposals';
+
+// Seller dùng trang khuyến mãi đầy đủ (tạo chương trình + mã), Admin dùng trang xem/xoá
+const PromotionsGate = () => {
+  const { isSeller, isAdmin } = useAuth();
+  if (isSeller && !isAdmin) return <SellerPromotions />;
+  return <AdminPromotions />;
+};
 
 // Route chỉ cho Admin/Seller/Supplier
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
@@ -82,6 +95,10 @@ function AppRoutes() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/products" element={<ProductsPage />} />
           <Route path="/support" element={<SupportPage />} />
+          <Route path="/best-seller" element={<BestSellerPage />} />
+          <Route path="/campaign" element={<CampaignPage />} />
+          <Route path="/vouchers" element={<VouchersPage />} />
+          <Route path="/creative" element={<CreativeCornerPage />} />
           <Route path="/products/:id" element={<ProductDetailPage />} />
           <Route path="/cart" element={
             <PrivateRoute><CartPage /></PrivateRoute>
@@ -110,7 +127,7 @@ function AppRoutes() {
             <Route path="categories" element={<AdminCategories />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="chat" element={<AdminChat />} />
-            <Route path="promotions" element={<AdminPromotions />} />
+            <Route path="promotions" element={<PromotionsGate />} />
             <Route path="stock" element={<AdminStock />} />
             <Route path="returns" element={<AdminReturns />} />
             <Route path="suppliers" element={<AdminSuppliers />} />
@@ -132,11 +149,13 @@ function App() {
     <BrowserRouter>
       <ScrollToTop />
         <AuthProvider>
-          <CartProvider>
-            <WishlistProvider>
-              <AppRoutes />
-            </WishlistProvider>
-          </CartProvider>
+          <NotificationProvider>
+            <CartProvider>
+              <WishlistProvider>
+                <AppRoutes />
+              </WishlistProvider>
+            </CartProvider>
+          </NotificationProvider>
         </AuthProvider>
     </BrowserRouter>
   );

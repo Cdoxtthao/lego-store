@@ -27,17 +27,19 @@ namespace BaseCore.APIService.Controllers
         // Admin: xem tất cả biên lai. Supplier: chỉ thấy biên lai của mình.
         // ─────────────────────────────────────────────────────────────────────
         [HttpGet]
-        [Authorize(Roles = "Admin,Supplier")]
+        [Authorize(Roles = "Admin,Supplier,Seller")]
         public async Task<IActionResult> GetAll([FromQuery] string? status = null)
         {
             var query = _context.SupplierReceipts
                 .Include(r => r.Product)
                 .Include(r => r.Supplier)
+                .Include(r => r.Seller)
                 .AsQueryable();
 
-            // Supplier chỉ thấy biên lai của chính mình
             if (GetUserRole() == "Supplier")
                 query = query.Where(r => r.SupplierId == GetUserId());
+            else if (GetUserRole() == "Seller")
+                query = query.Where(r => r.SellerId == GetUserId());
 
             if (!string.IsNullOrEmpty(status))
                 query = query.Where(r => r.Status == status);
@@ -61,6 +63,9 @@ namespace BaseCore.APIService.Controllers
                     r.SupplierNote,
                     r.CreatedAt,
                     r.ProcessedAt,
+                    r.SellerId,
+                    sellerName = r.Seller != null ? r.Seller.FullName : "",
+                    r.IsFromProposal
                 })
                 .ToListAsync();
 
@@ -71,12 +76,13 @@ namespace BaseCore.APIService.Controllers
         // GET /api/SupplierReceipts/{id}
         // ─────────────────────────────────────────────────────────────────────
         [HttpGet("{id}")]
-        [Authorize(Roles = "Admin,Supplier")]
+        [Authorize(Roles = "Admin,Supplier,Seller")]
         public async Task<IActionResult> GetById(int id)
         {
             var receipt = await _context.SupplierReceipts
                 .Include(r => r.Product)
                 .Include(r => r.Supplier)
+                .Include(r => r.Seller)
                 .Where(r => r.Id == id)
                 .Select(r => new
                 {
@@ -95,13 +101,17 @@ namespace BaseCore.APIService.Controllers
                     r.SupplierNote,
                     r.CreatedAt,
                     r.ProcessedAt,
+                    r.SellerId,
+                    sellerName = r.Seller != null ? r.Seller.FullName : "",
+                    r.IsFromProposal
                 })
                 .FirstOrDefaultAsync();
 
             if (receipt == null) return NotFound();
 
-            // Supplier chỉ được xem biên lai của mình
             if (GetUserRole() == "Supplier" && receipt.SupplierId != GetUserId())
+                return Forbid();
+            if (GetUserRole() == "Seller" && receipt.SellerId != GetUserId())
                 return Forbid();
 
             return Ok(receipt);
@@ -113,15 +123,13 @@ namespace BaseCore.APIService.Controllers
         // Ngay khi tạo, tồn kho sản phẩm được cập nhật.
         // ─────────────────────────────────────────────────────────────────────
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Seller")]
         public async Task<IActionResult> Create([FromBody] CreateReceiptRequest req)
         {
-            // Kiểm tra Supplier tồn tại (phải là User role Supplier)
-            var supplier = await _context.Users
-                .FirstOrDefaultAsync(u => u.Id == req.SupplierId);
+            var supplier = await _context.Users.Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Id == req.SupplierId && u.Role.Name == "Supplier");
             if (supplier == null) return BadRequest("Supplier không tồn tại.");
 
-            // Kiểm tra sản phẩm tồn tại
             var product = await _context.Products.FindAsync(req.ProductId);
             if (product == null) return BadRequest("Sản phẩm không tồn tại.");
 
@@ -130,38 +138,23 @@ namespace BaseCore.APIService.Controllers
 
             var receipt = new SupplierReceipt
             {
-                ReceiptCode  = code,
-                SupplierId   = req.SupplierId,
-                ProductId    = req.ProductId,
-                Quantity     = req.Quantity,
-                UnitPrice    = req.UnitPrice,
-                TotalAmount  = total,
-                Status       = "Pending",
-                AdminNote    = req.AdminNote,
+                ReceiptCode    = code,
+                SupplierId     = req.SupplierId,
+                SellerId       = GetUserId(), // Logged in Seller
+                ProductId      = req.ProductId,
+                Quantity       = req.Quantity,
+                UnitPrice      = req.UnitPrice,
+                TotalAmount    = total,
+                Status         = "PendingSupplier", // Seller requested, Supplier action pending
+                AdminNote      = req.AdminNote,
+                IsFromProposal = false,
+                CreatedAt      = DateTime.UtcNow
             };
 
             _context.SupplierReceipts.Add(receipt);
-
-            // Cập nhật tồn kho ngay khi Admin xác nhận đã nhận hàng
-            product.StockQuantity += req.Quantity;
-            product.UpdatedAt = DateTime.UtcNow;
-
-            // Ghi lô hàng vào StockBatches để truy xuất nguồn gốc
-            _context.StockBatches.Add(new StockBatch
-            {
-                ProductId  = req.ProductId,
-                BatchCode  = $"LOT-{code}",
-                Quantity   = req.Quantity,
-                CostPrice  = req.UnitPrice,
-                SupplierId = req.SupplierId,
-                ImportDate = DateTime.UtcNow,
-                Note       = $"Từ biên lai {code}",
-                Status     = "Active",
-            });
-
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Tạo biên lai thành công", id = receipt.Id, code });
+            return Ok(new { message = "Tạo yêu cầu biên lai thành công. Đang chờ Supplier xác nhận.", id = receipt.Id, code });
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -169,21 +162,120 @@ namespace BaseCore.APIService.Controllers
         // Supplier xác nhận biên lai (đồng ý với thông tin biên lai)
         // ─────────────────────────────────────────────────────────────────────
         [HttpPut("{id}/confirm")]
-        [Authorize(Roles = "Supplier")]
+        [Authorize(Roles = "Supplier,Seller")]
         public async Task<IActionResult> Confirm(int id, [FromBody] SupplierReceiptReplyRequest req)
         {
-            var receipt = await _context.SupplierReceipts.FindAsync(id);
+            var receipt = await _context.SupplierReceipts
+                .Include(r => r.Product)
+                .FirstOrDefaultAsync(r => r.Id == id);
             if (receipt == null) return NotFound();
-            if (receipt.SupplierId != GetUserId()) return Forbid();
-            if (receipt.Status != "Pending")
-                return BadRequest("Biên lai không ở trạng thái chờ xác nhận.");
 
-            receipt.Status       = "Confirmed";
-            receipt.SupplierNote = req.Note;
-            receipt.ProcessedAt  = DateTime.UtcNow;
+            var userRole = GetUserRole();
+            var userId = GetUserId();
+
+            if (receipt.IsFromProposal)
+            {
+                // Proposal flow: Seller confirms
+                if (userRole != "Seller" || receipt.SellerId != userId)
+                    return Forbid();
+
+                if (receipt.Status != "Pending")
+                    return BadRequest("Biên lai không ở trạng thái chờ xác nhận.");
+
+                receipt.Status       = "Confirmed";
+                receipt.ProcessedAt  = DateTime.UtcNow;
+                if (!string.IsNullOrEmpty(req.Note))
+                    receipt.SupplierNote = req.Note; // or SellerNote
+
+                // Update linked proposal status to Completed
+                var proposal = await _context.SupplierProposals.FirstOrDefaultAsync(p => p.ReceiptId == receipt.Id);
+                if (proposal != null)
+                {
+                    proposal.Status = "Completed";
+                    proposal.ProcessedAt = DateTime.UtcNow;
+                }
+
+                // Increase stock
+                receipt.Product.StockQuantity += receipt.Quantity;
+                receipt.Product.UpdatedAt = DateTime.UtcNow;
+
+                // Import price update
+                var product = receipt.Product;
+                var oldQty = product.StockQuantity - receipt.Quantity;
+                var newQty = receipt.Quantity;
+                product.ImportPrice = (oldQty + newQty) > 0
+                    ? (product.ImportPrice * oldQty + receipt.UnitPrice * newQty) / (oldQty + newQty)
+                    : receipt.UnitPrice;
+
+                // Add StockBatch
+                _context.StockBatches.Add(new StockBatch
+                {
+                    ProductId  = receipt.ProductId,
+                    BatchCode  = $"LOT-{receipt.ReceiptCode}",
+                    Quantity   = receipt.Quantity,
+                    CostPrice  = receipt.UnitPrice,
+                    SupplierId = receipt.SupplierId,
+                    ImportDate = DateTime.UtcNow,
+                    Note       = $"Từ đề nghị {receipt.ReceiptCode}",
+                    Status     = "Active",
+                });
+            }
+            else
+            {
+                // Request flow: Seller requested, Supplier ships, Seller confirms
+                if (receipt.Status == "PendingSupplier")
+                {
+                    // Supplier confirms they are shipping
+                    if (userRole != "Supplier" || receipt.SupplierId != userId)
+                        return Forbid();
+
+                    receipt.Status = "PendingSeller";
+                    receipt.ProcessedAt = DateTime.UtcNow;
+                    if (!string.IsNullOrEmpty(req.Note))
+                        receipt.SupplierNote = req.Note;
+                }
+                else if (receipt.Status == "PendingSeller")
+                {
+                    // Seller confirms they received the items
+                    if (userRole != "Seller" || receipt.SellerId != userId)
+                        return Forbid();
+
+                    receipt.Status = "Confirmed";
+                    receipt.ProcessedAt = DateTime.UtcNow;
+
+                    // Increase stock
+                    receipt.Product.StockQuantity += receipt.Quantity;
+                    receipt.Product.UpdatedAt = DateTime.UtcNow;
+
+                    // Import price update
+                    var product = receipt.Product;
+                    var oldQty = product.StockQuantity - receipt.Quantity;
+                    var newQty = receipt.Quantity;
+                    product.ImportPrice = (oldQty + newQty) > 0
+                        ? (product.ImportPrice * oldQty + receipt.UnitPrice * newQty) / (oldQty + newQty)
+                        : receipt.UnitPrice;
+
+                    // Add StockBatch
+                    _context.StockBatches.Add(new StockBatch
+                    {
+                        ProductId  = receipt.ProductId,
+                        BatchCode  = $"LOT-{receipt.ReceiptCode}",
+                        Quantity   = receipt.Quantity,
+                        CostPrice  = receipt.UnitPrice,
+                        SupplierId = receipt.SupplierId,
+                        ImportDate = DateTime.UtcNow,
+                        Note       = $"Từ yêu cầu {receipt.ReceiptCode}",
+                        Status     = "Active",
+                    });
+                }
+                else
+                {
+                    return BadRequest("Biên lai không ở trạng thái hợp lệ để xác nhận.");
+                }
+            }
 
             await _context.SaveChangesAsync();
-            return Ok(new { message = "Đã xác nhận biên lai." });
+            return Ok(new { message = "Đã xác nhận biên lai thành công." });
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -191,13 +283,19 @@ namespace BaseCore.APIService.Controllers
         // Supplier khiếu nại sai lệch thông tin biên lai
         // ─────────────────────────────────────────────────────────────────────
         [HttpPut("{id}/dispute")]
-        [Authorize(Roles = "Supplier")]
+        [Authorize(Roles = "Supplier,Seller")]
         public async Task<IActionResult> Dispute(int id, [FromBody] SupplierReceiptReplyRequest req)
         {
             var receipt = await _context.SupplierReceipts.FindAsync(id);
             if (receipt == null) return NotFound();
-            if (receipt.SupplierId != GetUserId()) return Forbid();
-            if (receipt.Status != "Pending")
+
+            var userRole = GetUserRole();
+            var userId = GetUserId();
+
+            if (userRole == "Supplier" && receipt.SupplierId != userId) return Forbid();
+            if (userRole == "Seller" && receipt.SellerId != userId) return Forbid();
+
+            if (receipt.Status != "Pending" && receipt.Status != "PendingSeller" && receipt.Status != "PendingSupplier")
                 return BadRequest("Biên lai không ở trạng thái chờ xác nhận.");
 
             receipt.Status       = "Disputed";
@@ -248,21 +346,35 @@ namespace BaseCore.APIService.Controllers
         // Thống kê tóm tắt cho Supplier Dashboard
         // ─────────────────────────────────────────────────────────────────────
         [HttpGet("stats")]
-        [Authorize(Roles = "Admin,Supplier")]
+        [Authorize(Roles = "Admin,Supplier,Seller")]
         public async Task<IActionResult> GetStats()
         {
             var query = _context.SupplierReceipts.AsQueryable();
             if (GetUserRole() == "Supplier")
                 query = query.Where(r => r.SupplierId == GetUserId());
+            else if (GetUserRole() == "Seller")
+                query = query.Where(r => r.SellerId == GetUserId());
+
+            decimal totalRevenue = 0;
+            if (GetUserRole() == "Supplier")
+            {
+                totalRevenue = await _context.SupplierReceipts
+                    .Where(r => r.SupplierId == GetUserId() && r.Status == "Confirmed")
+                    .SumAsync(r => (decimal?)r.TotalAmount) ?? 0;
+            }
+            else
+            {
+                totalRevenue = await query.Where(r => r.Status == "Confirmed").SumAsync(r => (decimal?)r.TotalAmount) ?? 0;
+            }
 
             var stats = new
             {
                 total       = await query.CountAsync(),
-                pending     = await query.CountAsync(r => r.Status == "Pending"),
+                pending     = await query.CountAsync(r => r.Status == "Pending" || r.Status == "PendingSupplier" || r.Status == "PendingSeller"),
                 confirmed   = await query.CountAsync(r => r.Status == "Confirmed"),
                 disputed    = await query.CountAsync(r => r.Status == "Disputed"),
                 resolved    = await query.CountAsync(r => r.Status == "Resolved"),
-                totalAmount = await query.Where(r => r.Status == "Confirmed").SumAsync(r => (decimal?)r.TotalAmount) ?? 0,
+                totalAmount = totalRevenue,
             };
 
             return Ok(stats);

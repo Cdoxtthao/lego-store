@@ -2,6 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { orderApi } from '../../api/orderApi';
 import { OrderResponse } from '../../types';
 import * as signalR from '@microsoft/signalr';
+import { getImageUrl } from '../../utils/imageHelper';
+import { useAuth } from '../../context/AuthContext';
+
+import { useSearchParams } from 'react-router-dom';
 
 const statusColors: Record<string, string> = {
   Pending:   'bg-yellow-50 text-yellow-600',
@@ -20,14 +24,22 @@ const statusLabels: Record<string, string> = {
 };
 
 const AdminOrders = () => {
+  const { isAdmin, isSeller } = useAuth();
+  const [searchParams] = useSearchParams();
+  const initialStatus = searchParams.get('status') || '';
   const [orders, setOrders] = useState<OrderResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [selectedOrder, setSelectedOrder] = useState<OrderResponse | null>(null);
   const selectedOrderRef = useRef<OrderResponse | null>(null);
   const pageSize = 10;
+
+  useEffect(() => {
+    setStatusFilter(searchParams.get('status') || '');
+    setPage(1);
+  }, [searchParams]);
 
   useEffect(() => {
     selectedOrderRef.current = selectedOrder;
@@ -67,6 +79,10 @@ const AdminOrders = () => {
       const res = await orderApi.getAll(page, pageSize, statusFilter || undefined);
       setOrders(res.items);
       setTotalCount(res.totalCount);
+    } catch (err: any) {
+      if (err.name !== 'CanceledError' && err.message !== 'canceled' && err.code !== 'ERR_CANCELED') {
+        console.error('Error fetching orders:', err);
+      }
     } finally {
       setLoading(false);
     }
@@ -147,6 +163,20 @@ const AdminOrders = () => {
                     </td>
                     <td className="px-4 py-3">
                       <p className="text-sm font-medium text-gray-800">{order.customerName}</p>
+                      {order.items && order.items.length > 0 && (
+                        <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                          {order.items.map((item, idx) => (
+                            <div key={idx} className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden border border-gray-100" title={`${item.productName} (x${item.quantity})`}>
+                              <img
+                                src={getImageUrl(item.productImage)}
+                                alt={item.productName}
+                                className="w-full h-full object-contain p-0.5"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-sm font-semibold text-gray-800">
                       {order.totalAmount.toLocaleString('vi-VN')}đ
@@ -229,14 +259,31 @@ const AdminOrders = () => {
 
               {/* Sản phẩm */}
               <div className="border-t border-gray-100 pt-3 mb-4">
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Sản phẩm</p>
-                <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-500 uppercase mb-2.5">Sản phẩm</p>
+                <div className="space-y-3">
                   {selectedOrder.items?.map((item, i) => (
-                    <div key={i} className="flex justify-between text-xs">
-                      <span className="text-gray-700 line-clamp-1 flex-1">{item.productName}</span>
-                      <span className="text-gray-500 ml-2 flex-shrink-0">
-                        x{item.quantity} · {item.subtotal.toLocaleString('vi-VN')}đ
-                      </span>
+                    <div key={i} className="flex gap-2.5 items-center">
+                      <div className="w-10 h-10 bg-flower-50 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden border border-flower-100/10">
+                        <img
+                          src={getImageUrl(item.productImage)}
+                          alt={item.productName}
+                          className="w-full h-full object-contain p-1"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-gray-700 line-clamp-1" title={item.productName}>
+                          {item.productName}
+                        </p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">
+                          Đơn giá: {item.price.toLocaleString('vi-VN')}đ
+                        </p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-sm font-semibold text-gray-800">
+                          x{item.quantity}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -245,7 +292,12 @@ const AdminOrders = () => {
               {/* Cập nhật trạng thái */}
               <div className="border-t border-gray-100 pt-3">
                 <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Trạng thái đơn hàng</p>
-                {selectedOrder.status === 'Pending' ? (
+                {isAdmin && !isSeller ? (
+                  <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl text-center">
+                    <p className="text-xs font-semibold text-gray-600">👁 Chế độ xem (Admin)</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">Admin chỉ theo dõi, không chỉnh sửa đơn hàng</p>
+                  </div>
+                ) : selectedOrder.status === 'Pending' ? (
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleUpdateStatus(selectedOrder.id, 'Confirmed')}

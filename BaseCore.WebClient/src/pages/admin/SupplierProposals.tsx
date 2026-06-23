@@ -63,12 +63,14 @@ const SupplierProposals = () => {
 
   // Form state
   const [products, setProducts]     = useState<Product[]>([]);
+  const [sellers, setSellers]       = useState<any[]>([]);
   const [form, setForm]             = useState({
     productId: '',
     proposedQuantity: '',
     proposedUnitPrice: '',
     supplierNote: '',
     estimatedDelivery: '',
+    sellerId: '',
   });
   const [saving, setSaving]         = useState(false);
   const [productSearch, setProductSearch] = useState('');
@@ -98,15 +100,23 @@ const SupplierProposals = () => {
     } catch { setProducts([]); }
   };
 
+  const fetchSellers = async () => {
+    try {
+      const res = await axiosClient.get('/Users/sellers');
+      setSellers(res.data || []);
+    } catch { setSellers([]); }
+  };
+
   const openForm = () => {
     fetchProducts();
-    setForm({ productId: '', proposedQuantity: '', proposedUnitPrice: '', supplierNote: '', estimatedDelivery: '' });
+    fetchSellers();
+    setForm({ productId: '', proposedQuantity: '', proposedUnitPrice: '', supplierNote: '', estimatedDelivery: '', sellerId: '' });
     setProductSearch('');
     setShowForm(true);
   };
 
   const handleSubmit = async () => {
-    if (!form.productId || !form.proposedQuantity || !form.proposedUnitPrice) return;
+    if (!form.productId || !form.proposedQuantity || !form.proposedUnitPrice || !form.sellerId) return;
     setSaving(true);
     try {
       await axiosClient.post('/SupplierProposals', {
@@ -115,6 +125,7 @@ const SupplierProposals = () => {
         proposedUnitPrice: Number(form.proposedUnitPrice),
         supplierNote:      form.supplierNote || null,
         estimatedDelivery: form.estimatedDelivery || null,
+        sellerId:          Number(form.sellerId),
       });
       setShowForm(false);
       fetchAll();
@@ -162,7 +173,7 @@ const SupplierProposals = () => {
         <div>
           <h2 className="text-xl font-bold text-gray-800">Đề nghị cung ứng</h2>
           <p className="text-sm text-gray-400 mt-0.5">
-            Tạo và theo dõi đề nghị gửi hàng lên Admin · Tổng {proposals.length} đề nghị
+            Tạo và theo dõi đề nghị gửi hàng cho Seller · Tổng {proposals.length} đề nghị
           </p>
         </div>
         <button
@@ -400,6 +411,21 @@ const SupplierProposals = () => {
             </div>
 
             <div className="p-6 space-y-4">
+              {/* Seller selection */}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Seller nhận đề nghị *</label>
+                <select
+                  value={form.sellerId}
+                  onChange={e => setForm(f => ({ ...f, sellerId: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-flower-100"
+                >
+                  <option value="">-- Chọn Seller --</option>
+                  {sellers.map(s => (
+                    <option key={s.id} value={s.id}>{s.fullName} ({s.email})</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Product search & select */}
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">Sản phẩm muốn cung ứng *</label>
@@ -419,7 +445,6 @@ const SupplierProposals = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-800 truncate">{selectedProduct.name}</p>
-                      <p className="text-xs text-gray-400">Tồn kho: {selectedProduct.stockQuantity}</p>
                     </div>
                     <button onClick={() => setForm(f => ({ ...f, productId: '' }))}
                       className="text-gray-400 hover:text-red-500 transition">
@@ -441,7 +466,7 @@ const SupplierProposals = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-gray-700 truncate">{p.name}</p>
-                          <p className="text-xs text-gray-400">Tồn: {p.stockQuantity} · Giá bán: {p.price.toLocaleString('vi-VN')}đ</p>
+                          <p className="text-xs text-gray-400">Giá bán: {p.price.toLocaleString('vi-VN')}đ</p>
                         </div>
                       </button>
                     ))}

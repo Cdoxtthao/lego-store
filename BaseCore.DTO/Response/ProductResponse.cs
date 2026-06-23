@@ -7,6 +7,7 @@ namespace BaseCore.DTO.Response
         public string? Description { get; set; }
         public decimal Price { get; set; }
         public decimal? OldPrice { get; set; }
+        public decimal ImportPrice { get; set; }   // giá nhập bình quân (cho seller/admin)
         public int StockQuantity { get; set; }
         public string? ImageUrl { get; set; }
         public int? CategoryId { get; set; }
@@ -14,6 +15,7 @@ namespace BaseCore.DTO.Response
         public string? Theme { get; set; }       // Tên chủ đề
         public int? ThemeId { get; set; }         // ID chủ đề
         public string? AgeRange { get; set; }
+        public string? Gender { get; set; }
         public string? Highlights { get; set; }   // Đặc điểm nổi bật của sản phẩm
         public string? SetNumber { get; set; }
         public bool IsFeatured { get; set; }

@@ -149,6 +149,88 @@ namespace BaseCore.Entities.Migrations
                     b.ToTable("Categories");
                 });
 
+            modelBuilder.Entity("BaseCore.Entities.CategoryTheme", b =>
+                {
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ThemeId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("CategoryId", "ThemeId");
+
+                    b.HasIndex("ThemeId");
+
+                    b.ToTable("CategoryThemes");
+                });
+
+            modelBuilder.Entity("BaseCore.Entities.ChildProfile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("Age")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("BirthDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Gender")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("ChildProfiles");
+                });
+
+            modelBuilder.Entity("BaseCore.Entities.CreativePost", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("CreativePosts");
+                });
+
             modelBuilder.Entity("BaseCore.Entities.Message", b =>
                 {
                     b.Property<int>("Id")
@@ -180,6 +262,54 @@ namespace BaseCore.Entities.Migrations
                     b.ToTable("Messages");
                 });
 
+            modelBuilder.Entity("BaseCore.Entities.Notification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Notifications");
+                });
+
             modelBuilder.Entity("BaseCore.Entities.Order", b =>
                 {
                     b.Property<int>("Id")
@@ -190,6 +320,9 @@ namespace BaseCore.Entities.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Note")
                         .HasColumnType("nvarchar(max)");
@@ -274,8 +407,17 @@ namespace BaseCore.Entities.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Gender")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Highlights")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ImageUrl")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("ImportPrice")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -289,9 +431,6 @@ namespace BaseCore.Entities.Migrations
 
                     b.Property<decimal?>("OldPrice")
                         .HasColumnType("decimal(18,2)");
-
-                    b.Property<int?>("PieceCount")
-                        .HasColumnType("int");
 
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,2)");
@@ -308,12 +447,17 @@ namespace BaseCore.Entities.Migrations
                     b.Property<string>("Theme")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("ThemeId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
+
+                    b.HasIndex("ThemeId");
 
                     b.ToTable("Products");
                 });
@@ -457,7 +601,7 @@ namespace BaseCore.Entities.Migrations
                             Description = "Tên website",
                             Group = "General",
                             Key = "SiteName",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 948, DateTimeKind.Utc).AddTicks(9745),
+                            UpdatedAt = new DateTime(2026, 6, 23, 2, 22, 47, 28, DateTimeKind.Utc).AddTicks(8710),
                             Value = "BrickDo"
                         },
                         new
@@ -466,7 +610,7 @@ namespace BaseCore.Entities.Migrations
                             Description = "Email liên hệ",
                             Group = "General",
                             Key = "SiteEmail",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 949, DateTimeKind.Utc).AddTicks(1338),
+                            UpdatedAt = new DateTime(2026, 6, 23, 2, 22, 47, 29, DateTimeKind.Utc).AddTicks(544),
                             Value = "support@brickdo.vn"
                         },
                         new
@@ -475,7 +619,7 @@ namespace BaseCore.Entities.Migrations
                             Description = "Số điện thoại",
                             Group = "General",
                             Key = "SitePhone",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 949, DateTimeKind.Utc).AddTicks(1340),
+                            UpdatedAt = new DateTime(2026, 6, 23, 2, 22, 47, 29, DateTimeKind.Utc).AddTicks(571),
                             Value = "1900xxxx"
                         },
                         new
@@ -484,7 +628,7 @@ namespace BaseCore.Entities.Migrations
                             Description = "Địa chỉ",
                             Group = "General",
                             Key = "SiteAddress",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 949, DateTimeKind.Utc).AddTicks(1341),
+                            UpdatedAt = new DateTime(2026, 6, 23, 2, 22, 47, 29, DateTimeKind.Utc).AddTicks(573),
                             Value = "123 Đường LEGO, TP.HCM"
                         },
                         new
@@ -493,7 +637,7 @@ namespace BaseCore.Entities.Migrations
                             Description = "Phí vận chuyển mặc định",
                             Group = "Shipping",
                             Key = "ShippingFee",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 949, DateTimeKind.Utc).AddTicks(1342),
+                            UpdatedAt = new DateTime(2026, 6, 23, 2, 22, 47, 29, DateTimeKind.Utc).AddTicks(574),
                             Value = "30000"
                         },
                         new
@@ -502,7 +646,7 @@ namespace BaseCore.Entities.Migrations
                             Description = "Đơn tối thiểu miễn ship",
                             Group = "Shipping",
                             Key = "FreeShippingMin",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 949, DateTimeKind.Utc).AddTicks(1343),
+                            UpdatedAt = new DateTime(2026, 6, 23, 2, 22, 47, 29, DateTimeKind.Utc).AddTicks(575),
                             Value = "500000"
                         },
                         new
@@ -511,7 +655,7 @@ namespace BaseCore.Entities.Migrations
                             Description = "Chế độ bảo trì",
                             Group = "System",
                             Key = "MaintenanceMode",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 949, DateTimeKind.Utc).AddTicks(1344),
+                            UpdatedAt = new DateTime(2026, 6, 23, 2, 22, 47, 29, DateTimeKind.Utc).AddTicks(575),
                             Value = "false"
                         },
                         new
@@ -520,7 +664,7 @@ namespace BaseCore.Entities.Migrations
                             Description = "Số lượng tối đa mỗi đơn",
                             Group = "Order",
                             Key = "MaxOrderQuantity",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 949, DateTimeKind.Utc).AddTicks(1345),
+                            UpdatedAt = new DateTime(2026, 6, 23, 2, 22, 47, 29, DateTimeKind.Utc).AddTicks(576),
                             Value = "10"
                         },
                         new
@@ -529,7 +673,7 @@ namespace BaseCore.Entities.Migrations
                             Description = "Cho phép đánh giá",
                             Group = "Product",
                             Key = "AllowReviews",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 949, DateTimeKind.Utc).AddTicks(1346),
+                            UpdatedAt = new DateTime(2026, 6, 23, 2, 22, 47, 29, DateTimeKind.Utc).AddTicks(577),
                             Value = "true"
                         },
                         new
@@ -538,9 +682,35 @@ namespace BaseCore.Entities.Migrations
                             Description = "Điểm thưởng mỗi đơn",
                             Group = "Loyalty",
                             Key = "PointsPerOrder",
-                            UpdatedAt = new DateTime(2026, 6, 20, 15, 59, 27, 949, DateTimeKind.Utc).AddTicks(1347),
+                            UpdatedAt = new DateTime(2026, 6, 23, 2, 22, 47, 29, DateTimeKind.Utc).AddTicks(578),
                             Value = "100"
                         });
+                });
+
+            modelBuilder.Entity("BaseCore.Entities.Theme", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Themes");
                 });
 
             modelBuilder.Entity("BaseCore.Entities.User", b =>
@@ -556,6 +726,12 @@ namespace BaseCore.Entities.Migrations
 
                     b.Property<string>("AvatarUrl")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("BirthdayEditCount")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("BirthdayRewardReceived")
+                        .HasColumnType("bit");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -586,6 +762,86 @@ namespace BaseCore.Entities.Migrations
                     b.HasIndex("RoleId");
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("BaseCore.Entities.UserVoucher", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("VoucherId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("VoucherId");
+
+                    b.ToTable("UserVouchers");
+                });
+
+            modelBuilder.Entity("BaseCore.Entities.Voucher", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CategoryIds")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("DiscountPercent")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ProductIds")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ScopeType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ThemeIds")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Vouchers");
                 });
 
             modelBuilder.Entity("BaseCore.Entities.Wishlist", b =>
@@ -814,6 +1070,9 @@ namespace BaseCore.Entities.Migrations
                     b.Property<int?>("ReceiptId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("SellerId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -829,6 +1088,8 @@ namespace BaseCore.Entities.Migrations
                     b.HasIndex("ProductId");
 
                     b.HasIndex("ReceiptId");
+
+                    b.HasIndex("SellerId");
 
                     b.HasIndex("SupplierId");
 
@@ -849,6 +1110,9 @@ namespace BaseCore.Entities.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("IsFromProposal")
+                        .HasColumnType("bit");
+
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("datetime2");
 
@@ -861,6 +1125,9 @@ namespace BaseCore.Entities.Migrations
                     b.Property<string>("ReceiptCode")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("SellerId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -881,6 +1148,8 @@ namespace BaseCore.Entities.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ProductId");
+
+                    b.HasIndex("SellerId");
 
                     b.HasIndex("SupplierId");
 
@@ -928,7 +1197,59 @@ namespace BaseCore.Entities.Migrations
                     b.Navigation("Product");
                 });
 
+            modelBuilder.Entity("BaseCore.Entities.CategoryTheme", b =>
+                {
+                    b.HasOne("BaseCore.Entities.Category", "Category")
+                        .WithMany("CategoryThemes")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BaseCore.Entities.Theme", "Theme")
+                        .WithMany("CategoryThemes")
+                        .HasForeignKey("ThemeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+
+                    b.Navigation("Theme");
+                });
+
+            modelBuilder.Entity("BaseCore.Entities.ChildProfile", b =>
+                {
+                    b.HasOne("BaseCore.Entities.User", "User")
+                        .WithMany("Children")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("BaseCore.Entities.CreativePost", b =>
+                {
+                    b.HasOne("BaseCore.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("BaseCore.Entities.Message", b =>
+                {
+                    b.HasOne("BaseCore.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("BaseCore.Entities.Notification", b =>
                 {
                     b.HasOne("BaseCore.Entities.User", "User")
                         .WithMany()
@@ -977,7 +1298,14 @@ namespace BaseCore.Entities.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("BaseCore.Entities.Theme", "ThemeNav")
+                        .WithMany("Products")
+                        .HasForeignKey("ThemeId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.Navigation("Category");
+
+                    b.Navigation("ThemeNav");
                 });
 
             modelBuilder.Entity("BaseCore.Entities.ProductImage", b =>
@@ -1019,6 +1347,25 @@ namespace BaseCore.Entities.Migrations
                         .IsRequired();
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("BaseCore.Entities.UserVoucher", b =>
+                {
+                    b.HasOne("BaseCore.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BaseCore.Entities.Voucher", "Voucher")
+                        .WithMany()
+                        .HasForeignKey("VoucherId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+
+                    b.Navigation("Voucher");
                 });
 
             modelBuilder.Entity("BaseCore.Entities.Wishlist", b =>
@@ -1091,6 +1438,11 @@ namespace BaseCore.Entities.Migrations
                         .HasForeignKey("ReceiptId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("BaseCore.Entities.User", "Seller")
+                        .WithMany()
+                        .HasForeignKey("SellerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("BaseCore.Entities.User", "Supplier")
                         .WithMany()
                         .HasForeignKey("SupplierId")
@@ -1100,6 +1452,8 @@ namespace BaseCore.Entities.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("Receipt");
+
+                    b.Navigation("Seller");
 
                     b.Navigation("Supplier");
                 });
@@ -1112,6 +1466,11 @@ namespace BaseCore.Entities.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("BaseCore.Entities.User", "Seller")
+                        .WithMany()
+                        .HasForeignKey("SellerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("BaseCore.Entities.User", "Supplier")
                         .WithMany()
                         .HasForeignKey("SupplierId")
@@ -1119,6 +1478,8 @@ namespace BaseCore.Entities.Migrations
                         .IsRequired();
 
                     b.Navigation("Product");
+
+                    b.Navigation("Seller");
 
                     b.Navigation("Supplier");
                 });
@@ -1130,6 +1491,8 @@ namespace BaseCore.Entities.Migrations
 
             modelBuilder.Entity("BaseCore.Entities.Category", b =>
                 {
+                    b.Navigation("CategoryThemes");
+
                     b.Navigation("Products");
                 });
 
@@ -1154,8 +1517,17 @@ namespace BaseCore.Entities.Migrations
                     b.Navigation("Users");
                 });
 
+            modelBuilder.Entity("BaseCore.Entities.Theme", b =>
+                {
+                    b.Navigation("CategoryThemes");
+
+                    b.Navigation("Products");
+                });
+
             modelBuilder.Entity("BaseCore.Entities.User", b =>
                 {
+                    b.Navigation("Children");
+
                     b.Navigation("Orders");
 
                     b.Navigation("Reviews");

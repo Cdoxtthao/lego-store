@@ -1,12 +1,35 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cartApi } from '../api/cartApi';
+import { voucherApi } from '../api/voucherApi';
 import { CartResponse } from '../types';
 import { getImageUrl } from '../utils/imageHelper';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useNotifications } from '../context/NotificationContext';
 import { profileApi } from '../api/profileApi';
 import { addressApi, AddressResponse } from '../api/addressApi';
+
+// ===== Tùy chọn gói quà & thiệp =====
+const GIFT_OPTIONS = [
+  { label: 'Không gói', sub: 'Miễn phí', fee: 0, icon: '📦' },
+  { label: 'Cơ bản', sub: '+15.000đ', fee: 15000, icon: '🎀' },
+  { label: 'Cao cấp', sub: '+30.000đ', fee: 30000, icon: '🎁' },
+  { label: 'Sang trọng', sub: '+50.000đ', fee: 50000, icon: '✨' },
+];
+const OCCASIONS = [
+  { label: 'Sinh nhật', icon: '🎂' },
+  { label: 'Tết', icon: '🧧' },
+  { label: 'Giáng sinh', icon: '🎄' },
+  { label: 'Kỷ niệm', icon: '💐' },
+  { label: 'Tốt nghiệp', icon: '🎓' },
+  { label: 'Khác', icon: '💝' },
+];
+const CARD_SUGGESTIONS = [
+  'Gửi đến bạn với tất cả tình yêu thương! 💝 Chúc bạn luôn vui vẻ, mạnh khỏe và hạnh phúc mỗi ngày!',
+  'Chúc mừng! 🎉 Mong những điều tuyệt vời nhất sẽ đến với bạn.',
+  'Một món quà nhỏ thay lời chúc lớn — vạn sự như ý! 🌸',
+];
 
 const CartPage = () => {
   const [cart, setCart] = useState<CartResponse | null>(null);
@@ -28,8 +51,23 @@ const CartPage = () => {
   const [orderTotal, setOrderTotal] = useState(0);
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
 
+  // ===== Gói quà & thiệp chúc mừng =====
+  const [giftEnabled, setGiftEnabled] = useState(false);
+  const [giftType, setGiftType] = useState(0);        // index trong GIFT_OPTIONS
+  const [occasion, setOccasion] = useState('Khác');
+  const [recipient, setRecipient] = useState('');
+  const [sender, setSender] = useState('');
+  const [cardMessage, setCardMessage] = useState('');
+  const [showCardPreview, setShowCardPreview] = useState(false);
+
+  // ===== Mã giảm giá =====
+  const [voucherInput, setVoucherInput] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState<{ code: string; discount: number } | null>(null);
+  const [voucherMsg, setVoucherMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   const { isAuthenticated, user } = useAuth();
   const { refreshCart } = useCart();
+  const { pushNotification } = useNotifications();
   const navigate = useNavigate();
   
   useEffect(() => {
@@ -95,6 +133,8 @@ const CartPage = () => {
       const res = await cartApi.updateQuantity(cartItemId, quantity);
       setCart(res);
       refreshCart();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật số lượng');
     } finally {
       setUpdating(null);
     }
@@ -111,6 +151,25 @@ const CartPage = () => {
     }
   };
 
+  const applyVoucher = async () => {
+    const code = voucherInput.trim();
+    if (!code) return;
+    if (selectedItems.length === 0) { setVoucherMsg({ ok: false, text: 'Hãy chọn sản phẩm trước.' }); return; }
+    try {
+      const res = await voucherApi.apply(code, selectedItems);
+      if (res.valid) {
+        setAppliedVoucher({ code, discount: res.discount });
+        setVoucherMsg({ ok: true, text: res.message });
+      } else {
+        setAppliedVoucher(null);
+        setVoucherMsg({ ok: false, text: res.message });
+      }
+    } catch (err: any) {
+      setAppliedVoucher(null);
+      setVoucherMsg({ ok: false, text: err.response?.data?.message || 'Không áp dụng được mã.' });
+    }
+  };
+
   const handleCheckout = async () => {
     if (!selectedAddress) {
       alert('Vui lòng chọn địa chỉ giao hàng');
@@ -122,18 +181,44 @@ const CartPage = () => {
     }
     setCheckoutLoading(true);
     try {
-      const total = cart!.total + (cart!.total >= 500000 ? 0 : 30000);
+      const giftFee = giftEnabled ? GIFT_OPTIONS[giftType].fee : 0;
+      const shippingFee = selectedTotal >= 500000 ? 0 : 30000;
+      const voucherDiscount = appliedVoucher?.discount ?? 0;
+      const total = Math.max(0, selectedTotal + shippingFee + giftFee - voucherDiscount);
       setOrderTotal(total);
+
+      // Ghi chú gói quà để seller thấy (có hộp + lời chúc)
+      let giftNote: string | undefined;
+      if (giftEnabled && (giftFee > 0 || cardMessage.trim())) {
+        const opt = GIFT_OPTIONS[giftType];
+        const lines = [`🎁 Gói quà: ${opt.label}${opt.fee > 0 ? ` (+${opt.fee.toLocaleString('vi-VN')}đ)` : ''} · Dịp: ${occasion}`];
+        if (recipient.trim() || sender.trim())
+          lines.push(`Người nhận: ${recipient.trim() || '-'} | Người gửi: ${sender.trim() || '-'}`);
+        if (cardMessage.trim()) lines.push(`Lời chúc: ${cardMessage.trim()}`);
+        giftNote = lines.join('\n');
+      }
 
       const res = await cartApi.checkout(
         selectedAddress.fullAddress,
         paymentMethod,
         selectedItems,
-        note
+        note,
+        giftFee,
+        giftNote,
+        shippingFee,
+        appliedVoucher?.code
       );
       setCart(null);
       refreshCart();
       setShowCheckout(false);
+      // Thông báo đặt hàng thành công
+      pushNotification({
+        type: 'order',
+        orderId: res.id,
+        status: 'Pending',
+        title: 'Đặt hàng thành công',
+        message: `Đơn hàng #${res.id} của bạn đã được tạo và đang chờ xác nhận.`,
+      });
       if (paymentMethod === 'COD') {
         setOrderSuccess(true);
       } else {
@@ -517,7 +602,7 @@ const CartPage = () => {
       {showCheckout && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
           onClick={() => setShowCheckout(false)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl"
+          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}>
 
             <div className="flex items-center justify-between mb-6">
@@ -625,12 +710,117 @@ const CartPage = () => {
               />
             </div>
 
+            {/* Gói quà & thiệp chúc mừng */}
+            <div className="mb-5 rounded-2xl border border-flower-100 overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 bg-flower-50">
+                <span className="text-sm font-semibold text-gray-700">🎁 Gói quà & Thiệp chúc mừng</span>
+                <button type="button" onClick={() => setGiftEnabled(v => !v)}
+                  className={`w-11 h-6 rounded-full transition relative ${giftEnabled ? 'bg-flower-100' : 'bg-gray-300'}`}>
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all ${giftEnabled ? 'left-[22px]' : 'left-0.5'}`} />
+                </button>
+              </div>
+
+              {giftEnabled && (
+                <div className="p-4 space-y-4 bg-flower-50/40">
+                  {/* Kiểu gói quà */}
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-2">Kiểu gói quà</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {GIFT_OPTIONS.map((g, i) => (
+                        <button key={g.label} type="button" onClick={() => setGiftType(i)}
+                          className={`rounded-xl border p-2 text-center transition ${giftType === i ? 'border-flower-100 bg-white shadow-sm' : 'border-gray-200 bg-white/60 hover:border-flower-100'}`}>
+                          <div className="text-xl">{g.icon}</div>
+                          <div className="text-xs font-semibold text-gray-700 mt-1">{g.label}</div>
+                          <div className={`text-[11px] ${g.fee > 0 ? 'text-flower-100' : 'text-green-600'}`}>{g.sub}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Dịp đặc biệt */}
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-2">Dịp đặc biệt</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {OCCASIONS.map(o => (
+                        <button key={o.label} type="button" onClick={() => setOccasion(o.label)}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition ${occasion === o.label ? 'bg-flower-100 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
+                          {o.icon} {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Người nhận / gửi */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <input value={recipient} onChange={e => setRecipient(e.target.value)} placeholder="Tên người nhận"
+                      className="border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                    <input value={sender} onChange={e => setSender(e.target.value)} placeholder="Tên người gửi"
+                      className="border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                  </div>
+
+                  {/* Lời chúc */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs font-medium text-gray-500">Lời chúc</p>
+                      <button type="button"
+                        onClick={() => setCardMessage(CARD_SUGGESTIONS[Math.floor(Math.random() * CARD_SUGGESTIONS.length)])}
+                        className="text-xs text-flower-100 border border-flower-100 rounded-full px-2 py-0.5">✨ Gợi ý</button>
+                    </div>
+                    <textarea value={cardMessage} onChange={e => setCardMessage(e.target.value.slice(0, 200))} rows={2}
+                      placeholder="Viết lời chúc của bạn..."
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-[11px] text-gray-400">{cardMessage.length}/200</span>
+                      {cardMessage.trim() && (
+                        <button type="button" onClick={() => setShowCardPreview(true)}
+                          className="text-xs text-flower-100">👁 Xem trước thiệp</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Mã giảm giá */}
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-gray-700 mb-2">🏷️ Mã giảm giá</label>
+              <div className="flex gap-2">
+                <input
+                  value={voucherInput}
+                  onChange={(e) => { setVoucherInput(e.target.value); setVoucherMsg(null); }}
+                  placeholder="Nhập mã giảm giá..."
+                  className="flex-1 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-flower-100" />
+                {appliedVoucher ? (
+                  <button onClick={() => { setAppliedVoucher(null); setVoucherInput(''); setVoucherMsg(null); }}
+                    className="px-4 rounded-xl border border-gray-200 text-gray-500 text-sm">Bỏ</button>
+                ) : (
+                  <button onClick={applyVoucher}
+                    className="px-5 rounded-xl bg-flower-100 text-white text-sm font-semibold hover:bg-flower-150">Áp dụng</button>
+                )}
+              </div>
+              {voucherMsg && (
+                <p className={`text-xs mt-1 ${voucherMsg.ok ? 'text-green-600' : 'text-red-500'}`}>{voucherMsg.text}</p>
+              )}
+            </div>
+
             {/* Tổng tiền */}
-            <div className="bg-flower-50 rounded-xl p-4 mb-5">
+            <div className="bg-flower-50 rounded-xl p-4 mb-5 space-y-1">
+              {giftEnabled && GIFT_OPTIONS[giftType].fee > 0 && (
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>🎁 Gói quà ({GIFT_OPTIONS[giftType].label})</span>
+                  <span>+{GIFT_OPTIONS[giftType].fee.toLocaleString('vi-VN')}đ</span>
+                </div>
+              )}
+              {appliedVoucher && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>🏷️ Mã {appliedVoucher.code}</span>
+                  <span>−{appliedVoucher.discount.toLocaleString('vi-VN')}đ</span>
+                </div>
+              )}
               <div className="flex justify-between font-bold text-gray-800">
                 <span>Tổng thanh toán</span>
                 <span className="text-flower-100 text-lg">
-                  {(cart!.total + (cart!.total >= 500000 ? 0 : 30000)).toLocaleString('vi-VN')}đ
+                  {Math.max(0, selectedTotal + (selectedTotal >= 500000 ? 0 : 30000) + (giftEnabled ? GIFT_OPTIONS[giftType].fee : 0) - (appliedVoucher?.discount ?? 0)).toLocaleString('vi-VN')}đ
                 </span>
               </div>
             </div>
@@ -641,6 +831,29 @@ const CartPage = () => {
               className="w-full py-3 bg-flower-100 text-white font-semibold rounded-xl hover:bg-flower-150 transition disabled:opacity-40">
               {checkoutLoading ? 'Đang xử lý...' : 'Xác nhận đặt hàng'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Xem trước thiệp */}
+      {showCardPreview && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4"
+          onClick={() => setShowCardPreview(false)}>
+          <div className="w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <div className="rounded-2xl p-6 text-white text-center shadow-xl"
+              style={{ background: 'linear-gradient(135deg,#f472b6,#ec4899)' }}>
+              <div className="text-4xl mb-3">💝</div>
+              <p className="whitespace-pre-wrap leading-relaxed">{cardMessage}</p>
+              {(recipient || sender) && (
+                <div className="mt-3 text-sm opacity-90">
+                  {recipient && <p>Gửi: {recipient}</p>}
+                  {sender && <p>Từ: {sender}</p>}
+                </div>
+              )}
+              <div className="mt-4 pt-3 border-t border-white/30 text-sm font-semibold">🎁 3TL-Store Gift</div>
+            </div>
+            <button onClick={() => setShowCardPreview(false)}
+              className="w-full mt-3 py-2.5 bg-white rounded-xl font-medium text-gray-600">Đóng xem trước</button>
           </div>
         </div>
       )}

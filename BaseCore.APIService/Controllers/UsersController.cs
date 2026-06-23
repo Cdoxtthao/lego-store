@@ -1,8 +1,10 @@
-﻿using BaseCore.DTO.Response;
+using BaseCore.DTO.Response;
 using BaseCore.Repository.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
+using BaseCore.Entities;
 
 namespace BaseCore.APIService.Controllers
 {
@@ -12,9 +14,11 @@ namespace BaseCore.APIService.Controllers
     public class UsersController : ControllerBase
     {
         private readonly IUserRepository _userRepo;
-        public UsersController(IUserRepository userRepo)
+        private readonly AppDbContext _context;
+        public UsersController(IUserRepository userRepo, AppDbContext context)
         {
             _userRepo = userRepo;
+            _context = context;
         }
 
         private int GetUserId() =>
@@ -109,5 +113,64 @@ namespace BaseCore.APIService.Controllers
                     return Ok(new { message = "Cập nhật vai trò thành công" });
                 }
 
+                // PUT api/users/{id}/active — Admin khoá / mở tài khoản (IsActive)
+                [Authorize(Roles = "Admin")]
+                [HttpPut("{id}/active")]
+                public async Task<IActionResult> SetActive(int id, [FromBody] bool isActive)
+                {
+                    var user = await _userRepo.GetByIdAsync(id);
+                    if (user == null) return NotFound();
+                    user.IsActive = isActive;
+                    await _userRepo.UpdateAsync(user);
+                    return Ok(new { message = isActive ? "Đã mở khoá tài khoản" : "Đã ngừng hoạt động tài khoản", isActive });
+                }
+
+                [HttpGet("customers")]
+                [Authorize(Roles = "Admin,Seller")]
+                public async Task<IActionResult> GetCustomers()
+                {
+                    var customers = await _context.Users
+                        .Include(u => u.Role)
+                        .Where(u => u.Role.Name == "Customer" && u.IsActive)
+                        .Select(u => new {
+                            id = u.Id,
+                            fullName = u.FullName,
+                            email = u.Email
+                        })
+                        .ToListAsync();
+                    return Ok(customers);
+                }
+
+                [HttpGet("sellers")]
+                [Authorize(Roles = "Admin,Supplier,Seller")]
+                public async Task<IActionResult> GetSellers()
+                {
+                    var sellers = await _context.Users
+                        .Include(u => u.Role)
+                        .Where(u => u.Role.Name == "Seller" && u.IsActive)
+                        .Select(u => new {
+                            id = u.Id,
+                            fullName = u.FullName,
+                            email = u.Email
+                        })
+                        .ToListAsync();
+                    return Ok(sellers);
+                }
+
+                [HttpGet("suppliers")]
+                [Authorize(Roles = "Admin,Supplier,Seller")]
+                public async Task<IActionResult> GetSuppliers()
+                {
+                    var suppliers = await _context.Users
+                        .Include(u => u.Role)
+                        .Where(u => u.Role.Name == "Supplier" && u.IsActive)
+                        .Select(u => new {
+                            id = u.Id,
+                            fullName = u.FullName,
+                            email = u.Email
+                        })
+                        .ToListAsync();
+                    return Ok(suppliers);
+                }
     }
 }

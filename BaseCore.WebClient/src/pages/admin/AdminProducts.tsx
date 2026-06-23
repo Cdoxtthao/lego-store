@@ -9,22 +9,52 @@ import { useAuth } from '../../context/AuthContext';
 import { categoryApi, CategoryResponse } from '../../api/categoryApi';
 import { themeApi, ThemeResponse } from '../../api/themeApi';
 
+import { useSearchParams } from 'react-router-dom';
+
+const getPageNumbers = (currentPage: number, totalPages: number) => {
+  const maxButtons = 5;
+  let start = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+  let end = start + maxButtons - 1;
+  if (end > totalPages) {
+    end = totalPages;
+    start = Math.max(1, end - maxButtons + 1);
+  }
+  const pages = [];
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+  return pages;
+};
+
 const AdminProducts = () => {
-  const { isSupplier } = useAuth();
+  const { isSupplier, isAdmin, isSeller } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialKeyword = searchParams.get('keyword') || searchParams.get('search') || '';
+
   const [products, setProducts] = useState<ProductResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
-  const [filters, setFilters] = useState<ProductSearchRequest>({ page: 1, pageSize: 10 });
+  const [filters, setFilters] = useState<ProductSearchRequest>({
+    page: 1,
+    pageSize: isSupplier ? 12 : 10,
+    keyword: initialKeyword || undefined
+  });
   const [showModal, setShowModal] = useState(false);
   const [editProduct, setEditProduct] = useState<ProductResponse | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialKeyword);
   // Filter dropdowns
   const [filterCategories, setFilterCategories] = useState<CategoryResponse[]>([]);
   const [filterThemes, setFilterThemes] = useState<ThemeResponse[]>([]);
   const [filterCatId, setFilterCatId] = useState<number | ''>('');
   const [filterThemeId, setFilterThemeId] = useState<number | ''>('');
+
+  useEffect(() => {
+    const kw = searchParams.get('keyword') || searchParams.get('search') || '';
+    setSearch(kw);
+    setFilters(f => ({ ...f, keyword: kw || undefined, page: 1 }));
+  }, [searchParams]);
 
   useEffect(() => {
     categoryApi.getAll().then(setFilterCategories).catch(() => {});
@@ -38,12 +68,20 @@ const AdminProducts = () => {
     }
   }, [search]);
 
+  useEffect(() => {
+    setFilters(f => ({ ...f, pageSize: isSupplier ? 12 : 10 }));
+  }, [isSupplier]);
+
   const fetchProducts = async () => {
     setLoading(true);
     try {
       const res = await productApi.getAll(filters);
       setProducts(res.items);
       setTotalCount(res.totalCount);
+    } catch (err: any) {
+      if (err.name !== 'CanceledError' && err.message !== 'canceled' && err.code !== 'ERR_CANCELED') {
+        console.error('Error fetching products:', err);
+      }
     } finally {
       setLoading(false);
     }
@@ -75,7 +113,7 @@ const AdminProducts = () => {
     fetchProducts();
   };
 
-  const totalPages = Math.ceil(totalCount / (filters.pageSize || 10));
+  const totalPages = Math.ceil(totalCount / (filters.pageSize || (isSupplier ? 12 : 10)));
 
   return (
     <div>
@@ -101,7 +139,7 @@ const AdminProducts = () => {
             </svg>
             Tạo đề nghị cung ứng
           </button>
-        ) : (
+        ) : isSeller ? (
           <button
             onClick={() => { setEditProduct(null); setShowModal(true); }}
             className="flex items-center gap-2 px-4 py-2.5 bg-flower-100 text-white rounded-xl text-sm font-medium hover:bg-flower-150 transition">
@@ -110,7 +148,7 @@ const AdminProducts = () => {
             </svg>
             Thêm sản phẩm
           </button>
-        )}
+        ) : null}
       </div>
 
       {/* Search + Filter */}
@@ -172,155 +210,78 @@ const AdminProducts = () => {
           </button>
         </form>
       </div>
-
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50">
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Sản phẩm</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Danh mục</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Chủ đề</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Giá</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tồn kho</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nổi bật</th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
+      {/* Table / Grid */}
+      {isSupplier ? (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
             {loading ? (
-              [...Array(5)].map((_, i) => (
-                <tr key={i}>
-                  <td colSpan={7} className="px-4 py-3">
-                    <div className="h-12 bg-gray-100 rounded-xl animate-pulse" />
-                  </td>
-                </tr>
+              [...Array(8)].map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 h-60 animate-pulse flex flex-col justify-between">
+                  <div className="bg-gray-100 h-32 rounded-xl" />
+                  <div className="space-y-2 mt-3">
+                    <div className="h-4 bg-gray-100 rounded w-3/4" />
+                    <div className="h-3 bg-gray-100 rounded w-1/2" />
+                  </div>
+                </div>
               ))
             ) : products.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="text-center py-12 text-gray-400">
-                  <span className="text-4xl block mb-2">📦</span>
-                  Không có sản phẩm nào
-                </td>
-              </tr>
+              <div className="col-span-full bg-white rounded-2xl border border-gray-100 py-16 text-center text-gray-400">
+                <span className="text-5xl block mb-2">📦</span>
+                Không có sản phẩm nào
+              </div>
             ) : (
               products.map(product => (
-                <tr 
-                    key={product.id} 
-                    onClick={() => { setEditProduct(product); setShowModal(true); }}
-                    className="hover:bg-gray-50 transition cursor-pointer">
-                  {/* Sản phẩm */}
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 flex-shrink-0 bg-flower-50 rounded-xl overflow-hidden">
-                        <img
-                          src={getImageUrl(product.imageUrl)}
-                          alt={product.name}
-                          className="w-full h-full object-contain p-1"
-                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-800 line-clamp-1">{product.name}</p>
-                        <p className="text-xs text-gray-400">#{product.setNumber}</p>
-                      </div>
+                <div
+                  key={product.id}
+                  onClick={() => { setEditProduct(product); setShowModal(true); }}
+                  className="bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md transition cursor-pointer flex flex-col group"
+                >
+                  {/* Image */}
+                  <div className="bg-flower-50 rounded-xl h-36 overflow-hidden flex items-center justify-center relative flex-shrink-0">
+                    <img
+                      src={getImageUrl(product.imageUrl)}
+                      alt={product.name}
+                      className="w-full h-full object-contain p-2 group-hover:scale-105 transition duration-300"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  </div>
+                  {/* Info */}
+                  <div className="mt-3 flex-1 flex flex-col justify-between">
+                    <div>
+                      <h4 className="font-semibold text-gray-800 text-sm line-clamp-2 group-hover:text-flower-100 transition" title={product.name}>
+                        {product.name}
+                      </h4>
+                      <p className="text-xs text-gray-400 mt-1">#{product.setNumber || '—'}</p>
                     </div>
-                  </td>
-
-                  {/* Danh mục */}
-                  <td className="px-4 py-3">
-                    <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-full font-medium">
-                      {product.categoryName || '—'}
-                    </span>
-                  </td>
-
-                  {/* Chủ đề */}
-                  <td className="px-4 py-3">
-                    <span className="text-xs bg-flower-50 text-flower-100 px-2 py-1 rounded-full font-medium">
-                      {product.theme || '—'}
-                    </span>
-                  </td>
-
-                  {/* Giá */}
-                  <td className="px-4 py-3">
-                    <p className="text-sm font-semibold text-flower-100">
-                      {product.price.toLocaleString('vi-VN')}đ
-                    </p>
-                    {product.oldPrice && (
-                      <p className="text-xs text-gray-400 line-through">
-                        {product.oldPrice.toLocaleString('vi-VN')}đ
-                      </p>
-                    )}
-                  </td>
-
-                  {/* Tồn kho */}
-                  <td className="px-4 py-3">
-                    <span className={`text-xs font-medium px-2 py-1 rounded-full
-                      ${product.stockQuantity > 10
-                        ? 'bg-green-50 text-green-600'
-                        : product.stockQuantity > 0
-                        ? 'bg-yellow-50 text-yellow-600'
-                        : 'bg-red-50 text-red-600'}`}>
-                      {product.stockQuantity > 0 ? `${product.stockQuantity} sp` : 'Hết hàng'}
-                    </span>
-                  </td>
-
-                  {/* Nổi bật */}
-                  <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium
-                      ${product.isFeatured
-                        ? 'bg-flower-50 text-flower-100'
-                        : 'bg-gray-100 text-gray-400'}`}>
-                      {product.isFeatured ? '⭐ Nổi bật' : 'Thường'}
-                    </span>
-                  </td>
-
-                  {/* Thao tác */}
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => { setEditProduct(product); setShowModal(true); }}
-                        className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition">
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setDeleteId(product.id)
-                        }}
-                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition">
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+                    {/* Category & Theme badges */}
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">
+                        {product.categoryName || '—'}
+                      </span>
+                      <span className="text-[10px] bg-flower-50 text-flower-100 px-2 py-0.5 rounded-full font-medium">
+                        {product.theme || '—'}
+                      </span>
                     </div>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))
             )}
-          </tbody>
-        </table>
+          </div>
 
-        {/* Phân trang */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-            <p className="text-xs text-gray-400">
-              Trang {filters.page} / {totalPages}
-            </p>
-            <div className="flex gap-1">
-              <button
-                onClick={() => setFilters(f => ({ ...f, page: Math.max(1, (f.page || 1) - 1) }))}
-                disabled={(filters.page || 1) <= 1}
-                className="w-8 h-8 border border-gray-200 rounded-lg flex items-center justify-center text-gray-500 hover:border-flower-100 hover:text-flower-100 transition disabled:opacity-30">
-                ‹
-              </button>
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const page = i + 1;
-                return (
+          {/* Phân trang cho Supplier */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 bg-white rounded-2xl border border-gray-100 mb-6">
+              <p className="text-xs text-gray-400">
+                Trang {filters.page} / {totalPages}
+              </p>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setFilters(f => ({ ...f, page: Math.max(1, (f.page || 1) - 1) }))}
+                  disabled={(filters.page || 1) <= 1}
+                  className="w-8 h-8 border border-gray-200 rounded-lg flex items-center justify-center text-gray-500 hover:border-flower-100 hover:text-flower-100 transition disabled:opacity-30">
+                  ‹
+                </button>
+                {getPageNumbers(filters.page || 1, totalPages).map(page => (
                   <button key={page}
                     onClick={() => setFilters(f => ({ ...f, page }))}
                     className={`w-8 h-8 border rounded-lg text-xs transition
@@ -329,18 +290,191 @@ const AdminProducts = () => {
                         : 'border-gray-200 text-gray-600 hover:border-flower-100'}`}>
                     {page}
                   </button>
-                );
-              })}
-              <button
-                onClick={() => setFilters(f => ({ ...f, page: Math.min(totalPages, (f.page || 1) + 1) }))}
-                disabled={(filters.page || 1) >= totalPages}
-                className="w-8 h-8 border border-gray-200 rounded-lg flex items-center justify-center text-gray-500 hover:border-flower-100 hover:text-flower-100 transition disabled:opacity-30">
-                ›
-              </button>
+                ))}
+                <button
+                  onClick={() => setFilters(f => ({ ...f, page: Math.min(totalPages, (f.page || 1) + 1) }))}
+                  disabled={(filters.page || 1) >= totalPages}
+                  className="w-8 h-8 border border-gray-200 rounded-lg flex items-center justify-center text-gray-500 hover:border-flower-100 hover:text-flower-100 transition disabled:opacity-30">
+                  ›
+                </button>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Sản phẩm</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Danh mục</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Chủ đề</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Giá</th>
+                {!isSupplier && <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tồn kho</th>}
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nổi bật</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {loading ? (
+                [...Array(5)].map((_, i) => (
+                  <tr key={i}>
+                    <td colSpan={isSupplier ? 6 : 7} className="px-4 py-3">
+                      <div className="h-12 bg-gray-100 rounded-xl animate-pulse" />
+                    </td>
+                  </tr>
+                ))
+              ) : products.length === 0 ? (
+                <tr>
+                  <td colSpan={isSupplier ? 6 : 7} className="text-center py-12 text-gray-400">
+                    <span className="text-4xl block mb-2">📦</span>
+                    Không có sản phẩm nào
+                  </td>
+                </tr>
+              ) : (
+                products.map(product => (
+                  <tr
+                      key={product.id}
+                      onClick={() => { if (isSeller) { setEditProduct(product); setShowModal(true); } }}
+                      className={`hover:bg-gray-50 transition ${isSeller ? 'cursor-pointer' : ''}`}>
+                    {/* Sản phẩm */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 flex-shrink-0 bg-flower-50 rounded-xl overflow-hidden">
+                          <img
+                            src={getImageUrl(product.imageUrl)}
+                            alt={product.name}
+                            className="w-full h-full object-contain p-1"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-800 line-clamp-1">{product.name}</p>
+                          <p className="text-xs text-gray-400">#{product.setNumber}</p>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Danh mục */}
+                    <td className="px-4 py-3">
+                      <span className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-full font-medium">
+                        {product.categoryName || '—'}
+                      </span>
+                    </td>
+
+                    {/* Chủ đề */}
+                    <td className="px-4 py-3">
+                      <span className="text-xs bg-flower-50 text-flower-100 px-2 py-1 rounded-full font-medium">
+                        {product.theme || '—'}
+                      </span>
+                    </td>
+
+                    {/* Giá */}
+                    <td className="px-4 py-3">
+                      <p className="text-sm font-semibold text-flower-100">
+                        {product.price.toLocaleString('vi-VN')}đ
+                      </p>
+                      {product.oldPrice && (
+                        <p className="text-xs text-gray-400 line-through">
+                          {product.oldPrice.toLocaleString('vi-VN')}đ
+                        </p>
+                      )}
+                    </td>
+
+                    {/* Tồn kho */}
+                    {!isSupplier && (
+                      <td className="px-4 py-3">
+                        <span className={`text-xs font-medium px-2 py-1 rounded-full
+                          ${product.stockQuantity > 10
+                            ? 'bg-green-50 text-green-600'
+                            : product.stockQuantity > 0
+                            ? 'bg-yellow-50 text-yellow-600'
+                            : 'bg-red-50 text-red-600'}`}>
+                          {product.stockQuantity > 0 ? `${product.stockQuantity} sp` : 'Hết hàng'}
+                        </span>
+                      </td>
+                    )}
+
+                    {/* Nổi bật */}
+                    <td className="px-4 py-3">
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium
+                        ${product.isFeatured
+                          ? 'bg-flower-50 text-flower-100'
+                          : 'bg-gray-100 text-gray-400'}`}>
+                        {product.isFeatured ? '⭐ Nổi bật' : 'Thường'}
+                      </span>
+                    </td>
+
+                    {/* Thao tác */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-2">
+                        {/* Seller: chỉ sửa */}
+                        {isSeller && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditProduct(product); setShowModal(true); }}
+                          className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition">
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        )}
+                        {/* Admin: chỉ xoá */}
+                        {isAdmin && (
+                        <button
+                          onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteId(product.id)
+                          }}
+                          className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition">
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+
+          {/* Phân trang */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
+              <p className="text-xs text-gray-400">
+                Trang {filters.page} / {totalPages}
+              </p>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setFilters(f => ({ ...f, page: Math.max(1, (f.page || 1) - 1) }))}
+                  disabled={(filters.page || 1) <= 1}
+                  className="w-8 h-8 border border-gray-200 rounded-lg flex items-center justify-center text-gray-500 hover:border-flower-100 hover:text-flower-100 transition disabled:opacity-30">
+                  ‹
+                </button>
+                {getPageNumbers(filters.page || 1, totalPages).map(page => (
+                  <button key={page}
+                    onClick={() => setFilters(f => ({ ...f, page }))}
+                    className={`w-8 h-8 border rounded-lg text-xs transition
+                      ${page === (filters.page || 1)
+                        ? 'bg-flower-100 text-white border-flower-100'
+                        : 'border-gray-200 text-gray-600 hover:border-flower-100'}`}>
+                    {page}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setFilters(f => ({ ...f, page: Math.min(totalPages, (f.page || 1) + 1) }))}
+                  disabled={(filters.page || 1) >= totalPages}
+                  className="w-8 h-8 border border-gray-200 rounded-lg flex items-center justify-center text-gray-500 hover:border-flower-100 hover:text-flower-100 transition disabled:opacity-30">
+                  ›
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Modal Thêm/Sửa sản phẩm */}
       {showModal && (
@@ -403,6 +537,7 @@ const ProductModal = ({
   onClose: () => void;
   onSaved: () => void;
 }) => {
+  const { isSupplier, isSeller } = useAuth();
   const [form, setForm] = useState({
     name: product?.name || '',
     description: product?.description || '',
@@ -413,6 +548,7 @@ const ProductModal = ({
     categoryId: product?.categoryId || 0,
     themeId: product?.themeId || 0,
     ageRange: product?.ageRange || '',
+    gender: product?.gender || 'Khác',
     highlights: product?.highlights || '',
     setNumber: product?.setNumber || '',
     isFeatured: product?.isFeatured || false,
@@ -543,7 +679,8 @@ const ProductModal = ({
           themeId: form.themeId || undefined,
           theme: selectedTheme?.name,
           ageRange: form.ageRange,
-          highlights: form.highlights,
+          gender: form.gender,
+          highlights: form.description,
           setNumber: form.setNumber,
           isFeatured: form.isFeatured,
           images: allImages,
@@ -560,7 +697,8 @@ const ProductModal = ({
           themeId: form.themeId || undefined,
           theme: selectedTheme?.name,
           ageRange: form.ageRange,
-          highlights: form.highlights,
+          gender: form.gender,
+          highlights: form.description,
           setNumber: form.setNumber,
           isFeatured: form.isFeatured,
           images: allImages,
@@ -608,6 +746,121 @@ const ProductModal = ({
     }
   };
 
+  if (isSupplier) {
+    return (
+      <div 
+        className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        <div 
+          className="bg-white rounded-2xl w-full max-w-2xl shadow-xl flex flex-col max-h-[90vh]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+            <h3 className="font-bold text-gray-800 text-lg">
+              🔍 Chi tiết sản phẩm
+            </h3>
+            <button onClick={onClose}
+              className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Details Content */}
+          <div className="overflow-y-auto p-6 space-y-6 flex-1">
+            <div className="flex flex-col md:flex-row gap-6">
+              {/* Image & Extra Images */}
+              <div className="w-full md:w-1/2 space-y-3">
+                <div className="bg-flower-50 rounded-2xl h-60 overflow-hidden flex items-center justify-center border border-gray-100">
+                  {previewImage ? (
+                    <img src={previewImage} alt={form.name} className="w-full h-full object-contain p-4" />
+                  ) : (
+                    <span className="text-5xl">📦</span>
+                  )}
+                </div>
+                {extraImages.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {/* Main image thumbnail */}
+                    {form.imageUrl && (
+                      <div 
+                        onClick={() => setPreviewImage(form.imageUrl.startsWith('http') ? form.imageUrl : `https://localhost:7175${form.imageUrl}`)}
+                        className={`w-12 h-12 rounded-lg border-2 overflow-hidden bg-flower-50 cursor-pointer transition ${previewImage.endsWith(form.imageUrl) ? 'border-flower-100' : 'border-gray-200'}`}
+                      >
+                        <img src={form.imageUrl.startsWith('http') ? form.imageUrl : `https://localhost:7175${form.imageUrl}`} alt="Main thumbnail" className="w-full h-full object-contain p-1" />
+                      </div>
+                    )}
+                    {/* Extra image thumbnails */}
+                    {extraImages.map((img, i) => {
+                      const fullUrl = img.startsWith('http') ? img : `https://localhost:7175${img}`;
+                      return (
+                        <div 
+                          key={i}
+                          onClick={() => setPreviewImage(fullUrl)}
+                          className={`w-12 h-12 rounded-lg border-2 overflow-hidden bg-flower-50 cursor-pointer transition ${previewImage === fullUrl ? 'border-flower-100' : 'border-gray-200'}`}
+                        >
+                          <img src={fullUrl} alt={`Thumbnail ${i}`} className="w-full h-full object-contain p-1" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Info Column */}
+              <div className="flex-1 space-y-4">
+                <div>
+                  <h4 className="text-xl font-bold text-gray-800">{form.name}</h4>
+                  <p className="text-xs text-gray-400 mt-1">Mã set: <span className="font-mono font-semibold text-gray-600">#{form.setNumber || '—'}</span></p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 border-t border-b border-gray-100 py-4">
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Danh mục</p>
+                    <span className="inline-block mt-1 text-xs bg-blue-50 text-blue-600 px-2.5 py-0.5 rounded-full font-medium">
+                      {dbCategories.find(c => c.id === form.categoryId)?.name || '—'}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Chủ đề</p>
+                    <span className="inline-block mt-1 text-xs bg-flower-50 text-flower-100 px-2.5 py-0.5 rounded-full font-medium">
+                      {dbThemes.find(t => t.id === form.themeId)?.name || '—'}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Độ tuổi phù hợp</p>
+                    <p className="text-sm font-semibold text-gray-700 mt-0.5">{form.ageRange || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Giới tính phù hợp</p>
+                    <p className="text-sm font-semibold text-gray-700 mt-0.5">{form.gender}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Description / Highlights */}
+            {form.description && (
+              <div className="border-t border-gray-100 pt-4 space-y-2">
+                <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Mô tả sản phẩm</p>
+                <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{form.description}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-gray-100 flex-shrink-0 flex justify-end">
+            <button onClick={onClose}
+              className="px-6 py-2 bg-gray-100 text-gray-600 rounded-xl text-sm font-medium hover:bg-gray-200 transition">
+              Đóng
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 
@@ -656,11 +909,14 @@ const ProductModal = ({
                 className={inputClass} placeholder="0" />
             </Field>
 
-            <Field label="Tồn kho" required>
-              <input type="text" inputMode="numeric" value={form.stockQuantity}
-                onChange={(e) => setForm({ ...form, stockQuantity: e.target.value })}
-                className={inputClass} placeholder="0" />
-            </Field>
+            {!isSupplier && (
+              <Field label="Tồn kho" required>
+                <input type="text" inputMode="numeric" value={form.stockQuantity}
+                  onChange={(e) => setForm({ ...form, stockQuantity: e.target.value })}
+                  disabled={isSupplier || isSeller}
+                  className={`${inputClass} disabled:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-75`} placeholder="0" />
+              </Field>
+            )}
 
             <Field label="Mã set">
               <input type="text" value={form.setNumber}
@@ -706,12 +962,22 @@ const ProductModal = ({
               </select>
             </Field>
 
+            <Field label="Giới tính">
+              <select value={form.gender}
+                onChange={(e) => setForm({ ...form, gender: e.target.value })}
+                className={inputClass}>
+                <option value="Khác">Khác (Nam/Nữ đều phù hợp)</option>
+                <option value="Nam">Nam</option>
+                <option value="Nữ">Nữ</option>
+              </select>
+            </Field>
+
             <div className="col-span-2">
               <Field label="Mô tả">
-                <textarea value={form.highlights}
-                  onChange={(e) => setForm({ ...form, highlights: e.target.value })}
-                  rows={2} maxLength={300} className={inputClass}
-                  placeholder="VD: Robot có thể cử động tay, đi kèm minifigure và vũ khí đặc trưng..." />
+                <textarea value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={3} className={inputClass}
+                  placeholder="Mô tả sản phẩm..." />
               </Field>
             </div>
 
@@ -912,13 +1178,7 @@ const ProductModal = ({
 
 </div>
 
-            <div className="col-span-2">
-              <Field label="Mô tả chi tiết">
-                <textarea value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  rows={3} className={inputClass} placeholder="Mô tả sản phẩm..." />
-              </Field>
-            </div>
+
 
             <div className="col-span-2 flex items-center gap-3">
               <input type="checkbox" id="isFeatured"

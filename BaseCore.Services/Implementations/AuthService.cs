@@ -33,6 +33,10 @@ namespace BaseCore.Services.Implementations
 
             if (!isPasswordValid) return null;
 
+            // Tài khoản bị admin ngừng hoạt động (IsActive = false) thì không cho đăng nhập
+            if (!user.IsActive)
+                throw new UnauthorizedAccessException("Tài khoản của bạn đã bị ngừng hoạt động. Vui lòng liên hệ 3TL-Store.");
+
             var token = GenerateToken(user);
 
             return new AuthResponse

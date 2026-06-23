@@ -21,9 +21,17 @@ namespace BaseCore.APIService.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            var result = await _authService.LoginAsync(request);
-            if (result == null) return Unauthorized(new { message = "Email hoac mat khau khong dung" });
-            return Ok(result); 
+            try
+            {
+                var result = await _authService.LoginAsync(request);
+                if (result == null) return Unauthorized(new { message = "Email hoac mat khau khong dung" });
+                return Ok(result);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                // Tài khoản bị khoá
+                return StatusCode(403, new { message = ex.Message });
+            }
         }
 
         [AllowAnonymous]

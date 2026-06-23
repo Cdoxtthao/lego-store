@@ -1,4 +1,4 @@
-﻿using BaseCore.Entities;
+using BaseCore.Entities;
 using BaseCore.Repository.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -33,8 +33,8 @@ namespace BaseCore.APIService.Controllers
             return Ok(response);
         }
 
-        // POST api/categories — Admin only
-        [Authorize(Roles = "Admin")]
+        // POST api/categories — Admin/Seller
+        [Authorize(Roles = "Admin,Seller")]
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CategoryRequest request)
         {
@@ -52,8 +52,8 @@ namespace BaseCore.APIService.Controllers
             return Ok(new { id = created.Id, message = "Tạo danh mục thành công" });
         }
 
-        // PUT api/categories/{id} — Admin only
-        [Authorize(Roles = "Admin")]
+        // PUT api/categories/{id} — Admin/Seller
+        [Authorize(Roles = "Admin,Seller")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] CategoryRequest request)
         {
@@ -68,8 +68,8 @@ namespace BaseCore.APIService.Controllers
             return Ok(new { message = "Cập nhật thành công" });
         }
 
-        // DELETE api/categories/{id} — Admin only
-        [Authorize(Roles = "Admin")]
+        // DELETE api/categories/{id} — Admin/Seller
+        [Authorize(Roles = "Admin,Seller")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

@@ -34,8 +34,8 @@ const ProductCard = ({ product }: Props) => {
       refreshCart();
       setAdded(true);
       setTimeout(() => setAdded(false), 2000);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Có lỗi xảy ra');
     } finally {
       setLoading(false);
     }
@@ -113,16 +113,25 @@ const ProductCard = ({ product }: Props) => {
           )}
         </div>
 
-        {/* Đặc điểm nổi bật */}
-        {product.highlights && (
-          <p className="text-xs text-gray-400 mt-1 line-clamp-1">{product.highlights}</p>
+        {/* Mô tả */}
+        {product.description && (
+          <p className="text-xs text-gray-400 mt-1 line-clamp-1">{product.description}</p>
         )}
+
+        {/* Tồn kho hiển thị ra ngoài Web */}
+        <p className={`text-xs mt-1 ${product.stockQuantity === 0 ? 'text-red-400' : product.stockQuantity <= 5 ? 'text-amber-500' : 'text-gray-400'}`}>
+          {product.stockQuantity === 0
+            ? 'Tạm hết hàng'
+            : product.stockQuantity <= 5
+            ? `Sắp hết — còn ${product.stockQuantity}`
+            : `Còn ${product.stockQuantity} sản phẩm`}
+        </p>
 
         {/* Nút thêm giỏ */}
         <div className="flex gap-2 mt-auto pt-2">
           <button
-            onClick={handleAddToCart || product.stockQuantity === 0}
-            disabled={loading}
+            onClick={handleAddToCart}
+            disabled={loading || product.stockQuantity === 0}
             className={`flex-1 py-2 rounded-lg text-sm font-semibold transition text-white
               ${product.stockQuantity === 0
                 ? 'bg-gray-300 cursor-not-allowed'        // ← hết hàng

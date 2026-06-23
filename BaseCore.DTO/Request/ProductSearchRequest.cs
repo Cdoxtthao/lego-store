@@ -7,6 +7,7 @@ namespace BaseCore.DTO.Request
         public string? Theme { get; set; }          // lọc theo chủ đề (tên - legacy)
         public int? ThemeId { get; set; }           // lọc theo chủ đề (ID)
         public string? AgeRange { get; set; }       // lọc theo độ tuổi
+        public string? Gender { get; set; }         // lọc theo giới tính (Nam | Nữ | Khác)
         public decimal? MinPrice { get; set; }      // giá từ
         public decimal? MaxPrice { get; set; }      // giá đến
         public bool? IsFeatured { get; set; }       // chỉ lấy sản phẩm nổi bật

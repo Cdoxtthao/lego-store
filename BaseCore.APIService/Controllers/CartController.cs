@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Microsoft.AspNetCore.SignalR;
 using BaseCore.APIService.Hubs;
+using BaseCore.APIService.Helpers;
+using BaseCore.Entities;
 
 namespace BaseCore.APIService.Controllers
 {
@@ -15,11 +17,13 @@ namespace BaseCore.APIService.Controllers
     {
         private readonly ICartService _cartService;
         private readonly IHubContext<ChatHub> _hubContext;
+        private readonly AppDbContext _context;
 
-        public CartController(ICartService cartService, IHubContext<ChatHub> hubContext)
+        public CartController(ICartService cartService, IHubContext<ChatHub> hubContext, AppDbContext context)
         {
             _cartService = cartService;
             _hubContext = hubContext;
+            _context = context;
         }
          
         private int GetUserId()
@@ -41,16 +45,30 @@ namespace BaseCore.APIService.Controllers
         [HttpPost]
         public async Task<IActionResult> AddToCart([FromBody] AddToCartRequest request)
         {
-            var result = await _cartService.AddToCartAsync(GetUserId(), request);
-            return Ok(result);
+            try
+            {
+                var result = await _cartService.AddToCartAsync(GetUserId(), request);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         // PUT api/cart/{cartItemId}
         [HttpPut("{cartItemId}")]
         public async Task<IActionResult> UpdateQuantity(int cartItemId, [FromBody] int quantity)
         {
-            var result = await _cartService.UpdateQuantityAsync(GetUserId(), cartItemId, quantity);
-            return Ok(result);
+            try
+            {
+                var result = await _cartService.UpdateQuantityAsync(GetUserId(), cartItemId, quantity);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         // DELETE api/cart/{cartItemId}
@@ -93,6 +111,16 @@ namespace BaseCore.APIService.Controllers
             catch (Exception ex)
             {
                 Console.WriteLine($"Error sending SignalR notification: {ex.Message}");
+            }
+
+            // Thông báo "đặt hàng thành công" cho chính người dùng (lưu DB + real-time)
+            try
+            {
+                await NotificationHelper.NotifyOrderAsync(_context, _hubContext, GetUserId(), result.Id, "Pending");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error creating user notification: {ex.Message}");
             }
 
             return Ok(result);

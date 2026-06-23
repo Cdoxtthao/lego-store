@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { cartApi } from '../api/cartApi';
 import { categoryApi, CategoryResponse } from '../api/categoryApi';
+import { themeApi, ThemeResponse } from '../api/themeApi';
 
 // ========== SIDEBAR FILTER ==========
 const FilterSidebar = ({
@@ -22,17 +23,32 @@ const FilterSidebar = ({
     category: true,
     price: true,
     age: true,
+    gender: true,
   });
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
+  const [themesMap, setThemesMap] = useState<Record<number, ThemeResponse[]>>({});
+  const [hoveredCatId, setHoveredCatId] = useState<number | null>(null);
 
   useEffect(() => {
     categoryApi.getAll().then(setCategories).catch(() => {});
   }, []);
 
+  const handleMouseEnterCat = async (catId: number) => {
+    setHoveredCatId(catId);
+    if (!themesMap[catId]) {
+      try {
+        const res = await themeApi.getAll(catId);
+        setThemesMap(prev => ({ ...prev, [catId]: res }));
+      } catch {
+        setThemesMap(prev => ({ ...prev, [catId]: [] }));
+      }
+    }
+  };
+
   const toggle = (key: keyof typeof openSections) =>
     setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
 
-  const ageRanges = ['6+', '8+', '9+', '10+', '12+', '14+', '18+'];
+  const ageRanges = ['6-10', '10-12', '12-14', '14-18', '18+'];
 
   const priceRanges = [
     { label: 'Dưới 500.000đ', min: undefined, max: 500000 },
@@ -53,7 +69,7 @@ const FilterSidebar = ({
       </p>
 
       {/* Reset bộ lọc */}
-      {(filters.theme || filters.categoryId || filters.themeId || filters.minPrice || filters.maxPrice || filters.ageRange) && (
+      {(filters.theme || filters.categoryId || filters.themeId || filters.minPrice || filters.maxPrice || filters.ageRange || filters.gender) && (
         <button
           onClick={() => onChange({ page: 1, pageSize: 12 })}
           className="w-full mb-4 text-sm text-flower-100 border border-flower-100 rounded-lg py-2 hover:bg-flower-50 transition">
@@ -72,32 +88,62 @@ const FilterSidebar = ({
           </svg>
         </button>
         {openSections.category && (
-          <div className="space-y-2 max-h-48 overflow-y-auto">
+          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
             {categories.map(cat => {
               const isSelected = filters.categoryId
                 ? filters.categoryId === cat.id
                 : filters.theme === cat.name;
               return (
-                <label key={cat.id} className="flex items-center gap-2 cursor-pointer group">
-                  <input
-                    type="radio"
-                    name="category"
-                    checked={isSelected}
-                    onChange={() => onChange({
-                      ...filters,
-                      categoryId: cat.id,
-                      theme: undefined,
-                      themeId: undefined,
-                      page: 1,
-                    })}
-                    className="accent-flower-100"
-                  />
-                  <span className={`text-sm group-hover:text-flower-100 transition flex-1
-                    ${isSelected ? 'text-flower-100 font-medium' : 'text-gray-600'}`}>
-                    {cat.name}
-                  </span>
-                  <span className="text-xs text-gray-400">({cat.productCount})</span>
-                </label>
+                <div key={cat.id} className="relative"
+                  onMouseEnter={() => handleMouseEnterCat(cat.id)}
+                  onMouseLeave={() => setHoveredCatId(null)}>
+                  <label className="flex items-center gap-2 cursor-pointer group py-0.5">
+                    <input
+                      type="radio"
+                      name="category"
+                      checked={isSelected}
+                      onChange={() => onChange({
+                        ...filters,
+                        categoryId: cat.id,
+                        theme: undefined,
+                        themeId: undefined,
+                        page: 1,
+                      })}
+                      className="accent-flower-100"
+                    />
+                    <span className={`text-sm group-hover:text-flower-100 transition flex-1
+                      ${isSelected ? 'text-flower-100 font-medium' : 'text-gray-600'}`}>
+                      {cat.name}
+                    </span>
+                    <span className="text-xs text-gray-400">({cat.productCount})</span>
+                  </label>
+
+                  {/* Popover chủ đề khi di chuột vào */}
+                  {hoveredCatId === cat.id && themesMap[cat.id] && themesMap[cat.id].length > 0 && (
+                    <div className="absolute left-full top-0 ml-2 bg-white border border-gray-100 rounded-xl shadow-lg p-3 z-50 min-w-[160px] space-y-1.5">
+                      <p className="text-xs font-semibold text-gray-400 border-b pb-1 mb-1">Chủ đề của {cat.name}</p>
+                      {themesMap[cat.id].map(t => {
+                        const isThemeSelected = filters.themeId === t.id;
+                        return (
+                          <button
+                            type="button"
+                            key={t.id}
+                            onClick={() => onChange({
+                              ...filters,
+                              categoryId: cat.id,
+                              themeId: t.id,
+                              theme: undefined,
+                              page: 1,
+                            })}
+                            className={`block w-full text-left text-xs py-1 px-2 rounded hover:bg-flower-50 transition
+                              ${isThemeSelected ? 'text-flower-100 font-semibold bg-flower-50/50' : 'text-gray-600'}`}>
+                            {t.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
@@ -178,6 +224,37 @@ const FilterSidebar = ({
           </div>
         )}
       </div>
+
+      {/* Giới tính */}
+      <div className="border-b border-gray-200 pb-4 mb-4">
+        <button onClick={() => toggle('gender')}
+          className="flex items-center justify-between w-full text-left font-semibold text-gray-800 mb-3">
+          Giới tính
+          <svg className={`h-4 w-4 transition ${openSections.gender ? 'rotate-180' : ''}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {openSections.gender && (
+          <div className="flex gap-2">
+            {['Nam', 'Nữ', 'Khác'].map(g => (
+              <button
+                key={g}
+                onClick={() => onChange({
+                  ...filters,
+                  gender: filters.gender === g ? undefined : g,
+                  page: 1
+                })}
+                className={`px-3 py-1 text-sm rounded-full border transition
+                  ${filters.gender === g
+                    ? 'bg-flower-100 text-white border-flower-100'
+                    : 'border-gray-300 text-gray-600 hover:border-flower-100 hover:text-flower-100'}`}>
+                {g === 'Khác' ? 'Cả hai' : g}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </aside>
   );
 };
@@ -205,8 +282,8 @@ const ProductListCard = ({ product }: { product: ProductResponse }) => {
       refreshCart();
       setAdded(true);
       setTimeout(() => setAdded(false), 2000);
-    } catch {
-      console.error('Lỗi thêm vào giỏ');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Có lỗi xảy ra');
     } finally {
       setLoading(false);
     }
@@ -272,9 +349,9 @@ const ProductListCard = ({ product }: { product: ProductResponse }) => {
           )}
         </div>
 
-        {/* Đặc điểm nổi bật */}
-        {product.highlights && (
-          <p className="text-xs text-gray-400 mb-3 line-clamp-2">{product.highlights}</p>
+        {/* Mô tả */}
+        {product.description && (
+          <p className="text-xs text-gray-400 mb-3 line-clamp-2">{product.description}</p>
         )}
 
         {/* Buttons */}
@@ -400,6 +477,14 @@ const ProductsPage = () => {
     pageSize: 12,
   });
 
+  const [dbCategories, setDbCategories] = useState<CategoryResponse[]>([]);
+  const [dbThemes, setDbThemes] = useState<ThemeResponse[]>([]);
+
+  useEffect(() => {
+    categoryApi.getAll().then(setDbCategories).catch(() => {});
+    themeApi.getAll().then(setDbThemes).catch(() => {});
+  }, []);
+
   useEffect(() => {
     const fetch = async () => {
       setLoading(true);
@@ -414,6 +499,21 @@ const ProductsPage = () => {
     };
     fetch();
   }, [filters]);
+
+  // Đồng bộ searchParams từ URL vào filters state khi chuyển trang hoặc đổi bộ lọc
+  useEffect(() => {
+    setFilters({
+      keyword: searchParams.get('keyword') || undefined,
+      categoryId: searchParams.get('categoryId') ? Number(searchParams.get('categoryId')) : undefined,
+      themeId: searchParams.get('themeId') ? Number(searchParams.get('themeId')) : undefined,
+      theme: searchParams.get('theme') || undefined,
+      ageRange: searchParams.get('ageRange') || undefined,
+      sortBy: searchParams.get('sortBy') || undefined,
+      isFeatured: searchParams.get('isFeatured') === 'true' ? true : undefined,
+      page: parseInt(searchParams.get('page') || '1'),
+      pageSize: 12,
+    });
+  }, [searchParams]);
 
   const handleFilterChange = (newFilters: ProductSearchRequest) => {
     const params: Record<string, string> = {};
@@ -434,16 +534,39 @@ const ProductsPage = () => {
     <div className="bg-white min-h-screen">
       <div className="max-w-7xl mx-auto px-6 py-8">
 
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-2 text-sm text-gray-400 mb-6">
+          <Link to="/" className="hover:text-flower-100">Trang chủ</Link>
+          <span>/</span>
+          <Link to="/products" className="hover:text-flower-100">Sản phẩm</Link>
+          {filters.categoryId && (
+            <>
+              <span>/</span>
+              <span className="text-gray-600">
+                {dbCategories.find(c => c.id === filters.categoryId)?.name || 'Danh mục'}
+              </span>
+            </>
+          )}
+          {filters.themeId && (
+            <>
+              <span>/</span>
+              <span className="text-gray-600">
+                {dbThemes.find(t => t.id === filters.themeId)?.name || 'Chủ đề'}
+              </span>
+            </>
+          )}
+        </nav>
+
         {/* Tiêu đề */}
         <h1 className="text-2xl font-bold text-gray-800 mb-2">
           {filters.keyword
             ? `Kết quả tìm kiếm cho "${filters.keyword}"`
             : filters.themeId
-            ? (result?.items[0]?.theme ? `LEGO ${result.items[0].theme}` : 'Chủ đề')
+            ? (dbThemes.find(t => t.id === filters.themeId)?.name || result?.items[0]?.theme || 'Chủ đề')
             : filters.categoryId
-            ? (result?.items[0]?.categoryName || 'Danh mục')
+            ? (dbCategories.find(c => c.id === filters.categoryId)?.name || result?.items[0]?.categoryName || 'Danh mục')
             : filters.theme
-            ? `LEGO ${filters.theme}`
+            ? `${filters.theme}`
             : 'Tất cả sản phẩm'}
         </h1>
 

@@ -26,12 +26,25 @@ export const cartApi = {
     await axiosClient.delete('/Cart');
   },
 
-  checkout: async (shippingAddress: string, paymentMethod: string, selectedItemIds: number[], note?: string) => {
+  checkout: async (
+    shippingAddress: string,
+    paymentMethod: string,
+    selectedItemIds: number[],
+    note?: string,
+    giftFee?: number,
+    giftNote?: string,
+    shippingFee?: number,
+    voucherCode?: string,
+  ) => {
     const res = await axiosClient.post<OrderResponse>('/Cart/checkout', {
       shippingAddress,
       paymentMethod,
       selectedItemIds,
       note,
+      giftFee: giftFee ?? 0,
+      giftNote,
+      shippingFee: shippingFee ?? 0,
+      voucherCode,
     });
     return res.data;
   },

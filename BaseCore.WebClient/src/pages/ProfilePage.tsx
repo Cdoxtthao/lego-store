@@ -11,12 +11,13 @@ import { useCart } from '../context/CartContext';
 import { useNavigate } from 'react-router-dom';
 import imageCompression from 'browser-image-compression';
 import * as signalR from '@microsoft/signalr';
+import BirthdayTab from '../components/BirthdayTab';
 
-const ProfilePage = ({ initialTab = 'info' }: { initialTab?: 'info' | 'password' | 'orders' }) => {
+const ProfilePage = ({ initialTab = 'info' }: { initialTab?: 'info' | 'password' | 'orders' | 'birthday' }) => {
   const { user, login } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'info' | 'address' | 'password' | 'orders'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'info' | 'address' | 'password' | 'orders' | 'birthday'>(initialTab);
   const [province, setProvince] = useState('');
   const [district, setDistrict] = useState('');
   const [ward, setWard] = useState('');
@@ -290,6 +291,7 @@ const ProfilePage = ({ initialTab = 'info' }: { initialTab?: 'info' | 'password'
                 { key: 'address', label: 'Địa chỉ của tôi', icon: '📍' },
                 { key: 'password', label: 'Đổi mật khẩu', icon: '🔒' },
                 { key: 'orders', label: 'Đơn hàng của tôi', icon: '📦' },
+                { key: 'birthday', label: 'Sinh nhật', icon: '🎂' },
               ].map(tab => (
                 <button
                   key={tab.key}
@@ -315,6 +317,9 @@ const ProfilePage = ({ initialTab = 'info' }: { initialTab?: 'info' | 'password'
 
             {/* Tab địa chỉ */}
             {activeTab === 'address' && <AddressTab />}
+
+            {/* Tab sinh nhật */}
+            {activeTab === 'birthday' && <BirthdayTab />}
 
             {/* Tab thông tin cá nhân */}
             {activeTab === 'info' && (
@@ -689,11 +694,16 @@ const OrdersTab = () => {
                   <>
                     <button
                       onClick={async () => {
-                        for (const item of order.items || []) {
-                          await cartApi.addToCart(item.productId, item.quantity);
+                        try {
+                          for (const item of order.items || []) {
+                            await cartApi.addToCart(item.productId, item.quantity);
+                          }
+                          refreshCart();
+                          navigate('/cart');
+                        } catch (err: any) {
+                          alert(err.response?.data?.message || 'Có lỗi xảy ra khi mua lại sản phẩm. Có thể do vượt quá tồn kho.');
+                          refreshCart();
                         }
-                        refreshCart();
-                        navigate('/cart');
                       }}
                       className="px-4 py-2 bg-flower-100 text-white rounded-xl text-xs font-medium hover:bg-flower-150 transition flex items-center gap-1">
                       <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

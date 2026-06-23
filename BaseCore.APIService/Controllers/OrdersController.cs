@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Microsoft.AspNetCore.SignalR;
 using BaseCore.APIService.Hubs;
+using BaseCore.APIService.Helpers;
 using BaseCore.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -136,7 +137,7 @@ namespace BaseCore.APIService.Controllers
         // PUT api/orders/{id}/status — Admin/Seller cập nhật trạng thái
         [Authorize(Roles = "Admin,Seller")]
         [HttpPut("{id}/status")]
-        public async Task<IActionResult> UpdateStatus(int id, [FromBody] string status)
+        public async Task<IActionResult> UpdateStatus(int id, [FromBody] string status, [FromQuery] string? reason = null)
         {
             var order = await _orderRepo.GetByIdAsync(id);
             if (order == null) return NotFound();
@@ -167,6 +168,9 @@ namespace BaseCore.APIService.Controllers
             {
                 Console.WriteLine($"Error sending SignalR notification: {ex.Message}");
             }
+
+            // Lưu + đẩy thông báo có ảnh đơn & lý do (nếu có) cho user
+            await NotificationHelper.NotifyOrderAsync(_context, _hubContext, order.UserId, id, status, reason);
 
             return Ok(new { message = "Cập nhật thành công" });
         }
@@ -200,12 +204,14 @@ namespace BaseCore.APIService.Controllers
                 Console.WriteLine($"Error sending SignalR notification: {ex.Message}");
             }
 
+            await NotificationHelper.NotifyOrderAsync(_context, _hubContext, order.UserId, id, "Delivered");
+
             return Ok(new { message = "Xác nhận đã nhận hàng thành công" });
         }
 
         // PUT api/orders/{id}/cancel — User tự hủy đơn
         [HttpPut("{id}/cancel")]
-        public async Task<IActionResult> CancelOrder(int id)
+        public async Task<IActionResult> CancelOrder(int id, [FromQuery] string? reason = null)
         {
             var userId = GetUserId();
             var order = await _orderRepo.GetByIdAsync(id);
@@ -232,7 +238,22 @@ namespace BaseCore.APIService.Controllers
                 Console.WriteLine($"Error sending SignalR notification: {ex.Message}");
             }
 
+            await NotificationHelper.NotifyOrderAsync(_context, _hubContext, order.UserId, id, "Cancelled", reason);
+
             return Ok(new { message = "Hủy đơn hàng thành công" });
+        }
+
+        // DELETE api/orders/{id} — chỉ Admin xóa mềm (đơn ẩn khỏi mọi truy vấn, vẫn còn trong DB)
+        [Authorize(Roles = "Admin")]
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> SoftDelete(int id)
+        {
+            var order = await _context.Orders.FindAsync(id);
+            if (order == null) return NotFound();
+            order.IsDeleted = true;
+            order.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Đã xóa đơn hàng" });
         }
     }
 }

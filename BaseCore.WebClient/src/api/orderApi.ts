@@ -12,16 +12,23 @@ export const orderApi = {
     return res.data;
   },
 
-  updateStatus: async (id: number, status: string) => {
-    const res = await axiosClient.put(`/Orders/${id}/status`, JSON.stringify(status));
+  updateStatus: async (id: number, status: string, reason?: string) => {
+    const url = `/Orders/${id}/status${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`;
+    const res = await axiosClient.put(url, JSON.stringify(status));
     return res.data;
   },
-  cancelOrder: async (id: number) => {
-    const res = await axiosClient.put(`/Orders/${id}/cancel`);
+  cancelOrder: async (id: number, reason?: string) => {
+    const url = `/Orders/${id}/cancel${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`;
+    const res = await axiosClient.put(url);
     return res.data;
   },
   receiveOrder: async (id: number) => {
     const res = await axiosClient.put(`/Orders/${id}/receive`);
+    return res.data;
+  },
+  // Chỉ Admin — xóa mềm đơn hàng
+  softDelete: async (id: number) => {
+    const res = await axiosClient.delete(`/Orders/${id}`);
     return res.data;
   },
 };

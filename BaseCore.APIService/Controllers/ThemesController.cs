@@ -77,12 +77,12 @@ namespace BaseCore.APIService.Controllers
             });
         }
 
-        // POST api/themes — Admin only
+        // POST api/themes — Admin/Seller
         // Logic gộp theo tên nằm hoàn toàn ở Backend:
         // - Nếu đã có Theme cùng tên (không phân biệt hoa/thường) -> dùng lại Theme đó,
         //   chỉ tạo thêm liên kết với danh mục mới (không tạo Theme trùng)
         // - Nếu chưa có -> tạo Theme mới rồi liên kết với danh mục
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Seller")]
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] ThemeRequest request)
         {
@@ -127,11 +127,11 @@ namespace BaseCore.APIService.Controllers
             return Ok(new { id = theme.Id, message = "Thêm chủ đề thành công" });
         }
 
-        // PUT api/themes/{id} — Admin only
+        // PUT api/themes/{id} — Admin/Seller
         // Theme giờ là thực thể chung (có thể thuộc nhiều danh mục), nên sửa Tên/Mô tả
         // sẽ ảnh hưởng tới tất cả danh mục đang dùng chủ đề này. Không còn nhận categoryId ở đây
         // (việc gắn/gỡ theo danh mục dùng POST/ DELETE .../categories/{categoryId}).
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Seller")]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] ThemeUpdateRequest request)
         {
@@ -155,9 +155,9 @@ namespace BaseCore.APIService.Controllers
             return Ok(new { message = "Cập nhật chủ đề thành công" });
         }
 
-        // DELETE api/themes/{id} — Admin only
+        // DELETE api/themes/{id} — Admin/Seller
         // Xóa chủ đề khỏi toàn hệ thống (mọi danh mục đang dùng nó cũng mất liên kết)
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Seller")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -174,9 +174,9 @@ namespace BaseCore.APIService.Controllers
             return Ok(new { message = "Xóa chủ đề thành công" });
         }
 
-        // DELETE api/themes/{themeId}/categories/{categoryId} — Admin only
+        // DELETE api/themes/{themeId}/categories/{categoryId} — Admin/Seller
         // Gỡ chủ đề khỏi MỘT danh mục (không xóa Theme khỏi hệ thống, vẫn còn ở các danh mục khác)
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Seller")]
         [HttpDelete("{themeId}/categories/{categoryId}")]
         public async Task<IActionResult> Unlink(int themeId, int categoryId)
         {

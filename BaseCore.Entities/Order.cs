@@ -13,6 +13,9 @@
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
 
+        // Xóa mềm: chỉ admin xóa, đơn ẩn khỏi mọi truy vấn nhưng vẫn còn trong DB
+        public bool IsDeleted { get; set; } = false;
+
         // Navigation properties
         public User User { get; set; } = null!;
         public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();

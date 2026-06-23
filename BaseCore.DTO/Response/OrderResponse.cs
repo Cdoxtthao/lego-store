@@ -21,7 +21,12 @@ namespace BaseCore.DTO.Response
         public string? ProductImage { get; set; }
         public int Quantity { get; set; }
         public decimal Price { get; set; }
-        public decimal Subtotal { get; set; }
+        private decimal? _subtotal;
+        public decimal Subtotal 
+        { 
+            get => _subtotal ?? (Price * Quantity); 
+            set => _subtotal = value; 
+        }
         public bool IsReviewed { get; set; }
     }
 }

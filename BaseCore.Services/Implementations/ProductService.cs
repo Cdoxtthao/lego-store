@@ -23,14 +23,17 @@ namespace BaseCore.Services.Implementations
             {
                 Id = product.Id,
                 Name = product.Name,
+                Description = product.Description,
                 Price = product.Price,
                 OldPrice = product.OldPrice,
+                ImportPrice = product.ImportPrice,
                 StockQuantity = product.StockQuantity,
                 CategoryId = product.CategoryId,
                 CategoryName = product.Category?.Name,
                 Theme = product.ThemeNav?.Name ?? product.Theme,
                 ThemeId = product.ThemeId,
                 AgeRange = product.AgeRange,
+                Gender = product.Gender,
                 Highlights = product.Highlights,
                 SetNumber = product.SetNumber,
                 IsFeatured = product.IsFeatured,
@@ -99,12 +102,14 @@ namespace BaseCore.Services.Implementations
                 Description = request.Description,
                 Price = request.Price,
                 OldPrice = request.OldPrice,
+                ImportPrice = request.ImportPrice,
                 StockQuantity = request.StockQuantity,
                 ImageUrl = request.ImageUrl,
                 CategoryId = request.CategoryId,
                 Theme = request.Theme,
                 ThemeId = request.ThemeId,
                 AgeRange = request.AgeRange,
+                Gender = request.Gender,
                 Highlights = request.Highlights,
                 SetNumber = request.SetNumber,
                 IsFeatured = request.IsFeatured,
@@ -124,6 +129,7 @@ namespace BaseCore.Services.Implementations
             if (request.Description != null) product.Description = request.Description;
             if (request.Price.HasValue) product.Price = request.Price.Value;
             if (request.OldPrice.HasValue) product.OldPrice = request.OldPrice.Value;
+            if (request.ImportPrice.HasValue) product.ImportPrice = request.ImportPrice.Value;
             if (request.StockQuantity.HasValue) product.StockQuantity = request.StockQuantity.Value;
             if (request.ImageUrl != null) product.ImageUrl = request.ImageUrl;
             if (request.CategoryId.HasValue) product.CategoryId = request.CategoryId.Value;
@@ -131,6 +137,7 @@ namespace BaseCore.Services.Implementations
             if (request.ThemeId.HasValue) product.ThemeId = request.ThemeId.Value;
             else if (request.ThemeId == null && request.Theme != null) product.ThemeId = null;
             if (request.AgeRange != null) product.AgeRange = request.AgeRange;
+            if (request.Gender != null) product.Gender = request.Gender;
             if (request.Highlights != null) product.Highlights = request.Highlights;
             if (request.SetNumber != null) product.SetNumber = request.SetNumber;
             if (request.IsFeatured.HasValue) product.IsFeatured = request.IsFeatured.Value;

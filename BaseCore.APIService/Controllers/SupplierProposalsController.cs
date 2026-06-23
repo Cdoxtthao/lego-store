@@ -27,16 +27,19 @@ namespace BaseCore.APIService.Controllers
         // Admin: xem tất cả đề nghị. Supplier: chỉ thấy đề nghị của mình.
         // ─────────────────────────────────────────────────────────────────────
         [HttpGet]
-        [Authorize(Roles = "Admin,Supplier")]
+        [Authorize(Roles = "Admin,Supplier,Seller")]
         public async Task<IActionResult> GetAll([FromQuery] string? status = null)
         {
             var query = _context.SupplierProposals
                 .Include(p => p.Product)
                 .Include(p => p.Supplier)
+                .Include(p => p.Seller)
                 .AsQueryable();
 
             if (GetUserRole() == "Supplier")
                 query = query.Where(p => p.SupplierId == GetUserId());
+            else if (GetUserRole() == "Seller")
+                query = query.Where(p => p.SellerId == GetUserId());
 
             if (!string.IsNullOrEmpty(status))
                 query = query.Where(p => p.Status == status);
@@ -62,6 +65,8 @@ namespace BaseCore.APIService.Controllers
                     p.CreatedAt,
                     p.ProcessedAt,
                     p.ReceiptId,
+                    p.SellerId,
+                    sellerName        = p.Seller != null ? p.Seller.FullName : ""
                 })
                 .ToListAsync();
 
@@ -72,12 +77,13 @@ namespace BaseCore.APIService.Controllers
         // GET /api/SupplierProposals/{id}
         // ─────────────────────────────────────────────────────────────────────
         [HttpGet("{id}")]
-        [Authorize(Roles = "Admin,Supplier")]
+        [Authorize(Roles = "Admin,Supplier,Seller")]
         public async Task<IActionResult> GetById(int id)
         {
             var proposal = await _context.SupplierProposals
                 .Include(p => p.Product)
                 .Include(p => p.Supplier)
+                .Include(p => p.Seller)
                 .Where(p => p.Id == id)
                 .Select(p => new
                 {
@@ -98,12 +104,16 @@ namespace BaseCore.APIService.Controllers
                     p.CreatedAt,
                     p.ProcessedAt,
                     p.ReceiptId,
+                    p.SellerId,
+                    sellerName        = p.Seller != null ? p.Seller.FullName : ""
                 })
                 .FirstOrDefaultAsync();
 
             if (proposal == null) return NotFound();
 
             if (GetUserRole() == "Supplier" && proposal.SupplierId != GetUserId())
+                return Forbid();
+            if (GetUserRole() == "Seller" && proposal.SellerId != GetUserId())
                 return Forbid();
 
             return Ok(proposal);
@@ -120,24 +130,50 @@ namespace BaseCore.APIService.Controllers
             var product = await _context.Products.FindAsync(req.ProductId);
             if (product == null) return BadRequest("Sản phẩm không tồn tại.");
 
+            var seller = await _context.Users.Include(u => u.Role)
+                .FirstOrDefaultAsync(u => u.Id == req.SellerId && u.Role.Name == "Seller");
+            if (seller == null) return BadRequest("Seller không tồn tại.");
+
             var code = $"PRP-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}";
+            var receiptCode = $"RC-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}";
+
+            // Automatically create a corresponding SupplierReceipt in "Pending" status
+            var receipt = new SupplierReceipt
+            {
+                ReceiptCode    = receiptCode,
+                SupplierId     = GetUserId(),
+                SellerId       = req.SellerId,
+                ProductId      = req.ProductId,
+                Quantity       = req.ProposedQuantity,
+                UnitPrice      = req.ProposedUnitPrice,
+                TotalAmount    = req.ProposedQuantity * req.ProposedUnitPrice,
+                Status         = "Pending",
+                AdminNote      = req.SupplierNote ?? "Đề nghị cung ứng",
+                IsFromProposal = true,
+                CreatedAt      = DateTime.UtcNow
+            };
+            _context.SupplierReceipts.Add(receipt);
+            await _context.SaveChangesAsync();
 
             var proposal = new SupplierProposal
             {
                 ProposalCode      = code,
                 SupplierId        = GetUserId(),
+                SellerId          = req.SellerId,
                 ProductId         = req.ProductId,
                 ProposedQuantity  = req.ProposedQuantity,
                 ProposedUnitPrice = req.ProposedUnitPrice,
                 SupplierNote      = req.SupplierNote,
                 EstimatedDelivery = req.EstimatedDelivery,
                 Status            = "Pending",
+                ReceiptId         = receipt.Id,
+                CreatedAt         = DateTime.UtcNow
             };
 
             _context.SupplierProposals.Add(proposal);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Gửi đề nghị thành công. Đang chờ Admin phê duyệt.", id = proposal.Id, code });
+            return Ok(new { message = "Gửi đề nghị thành công đến Seller.", id = proposal.Id, code, receiptId = receipt.Id });
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -303,6 +339,7 @@ namespace BaseCore.APIService.Controllers
         public decimal   ProposedUnitPrice { get; set; }
         public string?   SupplierNote      { get; set; }
         public DateTime? EstimatedDelivery { get; set; }
+        public int       SellerId          { get; set; }
     }
 
     public class ProcessProposalRequest

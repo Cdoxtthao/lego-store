@@ -13,6 +13,7 @@ namespace BaseCore.Repository.Implementations
             int page, int pageSize, string? status = null)
         {
             var query = _context.Orders
+                .Where(o => !o.IsDeleted)
                 .Include(o => o.User)
                 .Include(o => o.OrderItems)
                     .ThenInclude(oi => oi.Product)
@@ -51,7 +52,7 @@ namespace BaseCore.Repository.Implementations
             => await _context.Orders
                 .Include(o => o.OrderItems)
                     .ThenInclude(oi => oi.Product)
-                .Where(o => o.UserId == userId)
+                .Where(o => o.UserId == userId && !o.IsDeleted)
                 .OrderByDescending(o => o.CreatedAt)
                 .ToListAsync();
 
