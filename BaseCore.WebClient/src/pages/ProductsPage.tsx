@@ -48,7 +48,7 @@ const FilterSidebar = ({
   const toggle = (key: keyof typeof openSections) =>
     setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
 
-  const ageRanges = ['6-10', '10-12', '12-14', '14-18', '18+'];
+  const ageRanges = ['6-10', '10-12', '12-14', '14-18'];
 
   const priceRanges = [
     { label: 'Dưới 500.000đ', min: undefined, max: 500000 },

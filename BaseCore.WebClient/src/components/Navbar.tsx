@@ -852,16 +852,16 @@ const Navbar = () => {
                   <Link to={item.link}
                     className={`block px-4 py-3 transition-all whitespace-nowrap ${
                       item.label === 'Chương trình'
-                        ? 'hover:text-red-500'
+                        ? 'hover:text-flower-100'
                         : 'hover:text-flower-100 hover:border-b-2 hover:border-flower-100'
                     }`}>
                     {item.label === 'Chương trình' ? (
-                      <span className="relative inline-block px-2.5 py-0.5">
-                        {/* Vòng elip đỏ nghệ thuật bao quanh chữ */}
-                        <svg className="absolute inset-0 w-full h-full text-red-500 overflow-visible pointer-events-none scale-y-125 scale-x-115" viewBox="0 0 100 40" preserveAspectRatio="none" style={{ top: '-1px' }}>
-                          <ellipse cx="50" cy="20" rx="48" ry="16" fill="none" stroke="currentColor" strokeWidth="2.5" transform="rotate(-1.5 50 20)" />
+                      <span className="relative inline-block px-3 py-1">
+                        {/* Vòng elip hồng nghệ thuật bao quanh chữ */}
+                        <svg className="absolute inset-0 w-full h-full text-flower-100 overflow-visible pointer-events-none scale-y-135 scale-x-125" viewBox="0 0 100 40" preserveAspectRatio="none" style={{ top: '-1px' }}>
+                          <ellipse cx="50" cy="20" rx="48" ry="16" fill="none" stroke="currentColor" strokeWidth="0.4" transform="rotate(-4.5 50 20)" />
                         </svg>
-                        <span className="text-red-500 font-bold">{item.label}</span>
+                        <span className="text-flower-100 brand-wordmark">{item.label}</span>
                       </span>
                     ) : (
                       item.label

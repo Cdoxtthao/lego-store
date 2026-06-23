@@ -1,4 +1,4 @@
-﻿using BaseCore.Entities;
+using BaseCore.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -33,26 +33,46 @@ namespace BaseCore.APIService.Controllers
                 .OrderByDescending(w => w.CreatedAt)
                 .ToListAsync();
 
-            var response = items.Select(w => new
-            {
-                id = w.Id,
-                productId = w.ProductId,
-                productName = w.Product.Name,
-                productImage = w.Product.ImageUrl,
-                price = w.Product.Price,
-                oldPrice = w.Product.OldPrice,
-                categoryName = w.Product.Category?.Name,
-                theme = w.Product.Theme,
-                isFeatured = w.Product.IsFeatured,
-                stockQuantity = w.Product.StockQuantity,
-                averageRating = w.Product.Reviews.Any()
-                    ? w.Product.Reviews.Average(r => r.Rating) : 0,
-                reviewCount = w.Product.Reviews.Count,
-                discountPercent = w.Product.OldPrice.HasValue && w.Product.OldPrice > 0
-                    ? (int)Math.Round((1 - (double)w.Product.Price / (double)w.Product.OldPrice) * 100)
-                    : (int?)null,
-                createdAt = w.CreatedAt,
-            });
+            var now = DateTime.UtcNow;
+            var activePromotion = await _context.Promotions
+                .Where(p => p.IsActive && p.StartDate <= now && p.EndDate >= now)
+                .OrderByDescending(p => p.DiscountPercent)
+                .FirstOrDefaultAsync();
+
+            var response = items.Select(w => {
+                var price = w.Product.Price;
+                var oldPrice = w.Product.OldPrice;
+
+                if (activePromotion != null)
+                {
+                    if (!oldPrice.HasValue || oldPrice == 0)
+                        oldPrice = price;
+                    price = Math.Round(oldPrice.Value * (1 - activePromotion.DiscountPercent / 100m), 0);
+                }
+
+                var discountPercent = oldPrice.HasValue && oldPrice > 0
+                    ? (int)Math.Round((1 - (double)price / (double)oldPrice.Value) * 100)
+                    : (int?)null;
+
+                return new
+                {
+                    id = w.Id,
+                    productId = w.ProductId,
+                    productName = w.Product.Name,
+                    productImage = w.Product.ImageUrl,
+                    price = price,
+                    oldPrice = oldPrice,
+                    categoryName = w.Product.Category?.Name,
+                    theme = w.Product.Theme,
+                    isFeatured = w.Product.IsFeatured,
+                    stockQuantity = w.Product.StockQuantity,
+                    averageRating = w.Product.Reviews.Any()
+                        ? w.Product.Reviews.Average(r => r.Rating) : 0,
+                    reviewCount = w.Product.Reviews.Count,
+                    discountPercent = discountPercent,
+                    createdAt = w.CreatedAt,
+                };
+            }).ToList();
 
             return Ok(response);
         }

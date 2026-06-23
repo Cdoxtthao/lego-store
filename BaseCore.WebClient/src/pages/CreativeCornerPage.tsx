@@ -97,14 +97,15 @@ const CreativeCornerPage = () => {
           </div>
         )}
 
-        {/* Danh sách bài viết — dạng bức thư */}
+        {/* Danh sách bài viết — giao diện dạng khung chat */}
         <div className="space-y-6">
           {posts.length === 0 ? (
             <p className="text-center text-gray-400 py-10">Chưa có bài viết nào. Hãy là người đầu tiên chia sẻ!</p>
           ) : posts.map(p => (
-            <div key={p.id} className="bg-white rounded-2xl shadow-sm overflow-hidden border border-flower-100">
-              <div className="flex items-center gap-3 px-5 py-3 border-b border-flower-100 bg-flower-50">
-                <div className="w-10 h-10 rounded-full bg-flower-100 flex items-center justify-center overflow-hidden">
+            <div key={p.id} className="bg-white rounded-2xl shadow-sm border border-flower-100 overflow-hidden">
+              {/* Header của bài viết */}
+              <div className="flex items-center gap-3 px-5 py-3.5 border-b border-flower-100 bg-flower-50/50">
+                <div className="w-10 h-10 rounded-full bg-flower-100 flex items-center justify-center overflow-hidden shadow-inner">
                   {p.userAvatar ? (
                     <img src={getImageUrl(p.userAvatar)} alt="" className="w-full h-full object-cover"
                       onError={(e) => { e.currentTarget.style.display = 'none'; }} />
@@ -114,27 +115,34 @@ const CreativeCornerPage = () => {
                 </div>
                 <div className="flex-1">
                   <p className="font-semibold text-gray-800 text-sm">{p.userName}</p>
-                  <p className="text-xs text-gray-400">{new Date(p.createdAt).toLocaleString('vi-VN')}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{new Date(p.createdAt).toLocaleString('vi-VN')}</p>
                 </div>
                 {p.canEdit && (
-                  <div className="flex gap-2 text-xs">
-                    <button onClick={() => startEdit(p)} className="text-blue-500 hover:underline">Sửa</button>
-                    <button onClick={() => remove(p.id)} className="text-red-500 hover:underline">Xóa</button>
+                  <div className="flex gap-2.5 text-xs font-semibold">
+                    <button onClick={() => startEdit(p)} className="text-blue-500 hover:text-blue-600 hover:underline">Sửa</button>
+                    <span className="text-gray-200">|</span>
+                    <button onClick={() => remove(p.id)} className="text-red-500 hover:text-red-600 hover:underline">Xóa</button>
                   </div>
                 )}
               </div>
-              {p.imageUrl && (
-                <img src={getImageUrl(p.imageUrl)} alt="" className="w-full max-h-96 object-contain bg-gray-50"
-                  onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-              )}
-              {/* Nội dung dạng bức thư: nền hồng + dòng kẻ */}
-              <div className="px-6 py-5 text-flower-150"
-                style={{
-                  backgroundImage: 'repeating-linear-gradient(#fff, #fff 27px, #fbcfe8 28px)',
-                  lineHeight: '28px',
-                  fontFamily: 'Georgia, serif',
-                }}>
-                <p className="whitespace-pre-wrap text-[15px] text-pink-700">{p.content}</p>
+
+              {/* Phần thân chứa Ảnh và Khối Chat */}
+              <div className="p-5 flex flex-col gap-4">
+                {p.imageUrl && (
+                  <div className="rounded-xl overflow-hidden border border-gray-100 max-h-96 flex justify-center bg-gray-50 shadow-sm">
+                    <img src={getImageUrl(p.imageUrl)} alt="" className="max-w-full max-h-96 object-contain"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                  </div>
+                )}
+                
+                {/* Khối tin nhắn chat */}
+                <div className="flex items-start">
+                  <div className="bg-flower-50 border border-flower-100/50 rounded-2xl rounded-tl-none px-5 py-3 shadow-sm max-w-full md:max-w-[85%]">
+                    <p className="whitespace-pre-wrap text-[15px] text-pink-700 font-semibold leading-relaxed">
+                      {p.content}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           ))}

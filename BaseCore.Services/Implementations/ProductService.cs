@@ -65,7 +65,7 @@ namespace BaseCore.Services.Implementations
         {
             var (items, totalCount) = await _productRepository.GetAllAsync(request);
             var soldCounts = await _productRepository.GetSoldCountsAsync(items.Select(p => p.Id));
-            var mapped = items.Select(p => MapToResponse(p, soldCounts.GetValueOrDefault(p.Id)));
+            var mapped = items.Select(p => MapToResponse(p, soldCounts.GetValueOrDefault(p.Id))).ToList();
             return new PagedResponse<ProductResponse>
             {
                 Items = mapped,
@@ -90,7 +90,7 @@ namespace BaseCore.Services.Implementations
         {
             var products = await _productRepository.GetFeaturedAsync(count);
             var soldCounts = await _productRepository.GetSoldCountsAsync(products.Select(p => p.Id));
-            return products.Select(p => MapToResponse(p, soldCounts.GetValueOrDefault(p.Id)));
+            return products.Select(p => MapToResponse(p, soldCounts.GetValueOrDefault(p.Id))).ToList();
         }
 
         //=============== CREATE ======================

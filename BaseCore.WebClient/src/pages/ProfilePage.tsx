@@ -13,6 +13,105 @@ import imageCompression from 'browser-image-compression';
 import * as signalR from '@microsoft/signalr';
 import BirthdayTab from '../components/BirthdayTab';
 
+interface ParsedGift {
+  hasBox: boolean;
+  boxStyle: string;
+  boxFee: number;
+  occasion: string;
+  sender: string;
+  recipient: string;
+  hasCard: boolean;
+  cardMessage: string;
+  hasVoucher: boolean;
+  voucherCode: string;
+  voucherDiscount: number;
+}
+
+const parseGiftFromNote = (note?: string): ParsedGift | null => {
+  if (!note) return null;
+
+  let hasBox = false;
+  let boxStyle = '';
+  let boxFee = 0;
+  let occasion = '';
+  let sender = '';
+  let recipient = '';
+  let hasCard = false;
+  let cardMessage = '';
+  let hasVoucher = false;
+  let voucherCode = '';
+  let voucherDiscount = 0;
+
+  const lines = note.split('\n');
+  for (const line of lines) {
+    if (line.includes('🎁 Gói quà:')) {
+      hasBox = true;
+      const matchStyle = line.match(/🎁 Gói quà:\s*([^·+(]+)/);
+      if (matchStyle) {
+        boxStyle = matchStyle[1].trim();
+      }
+
+      if (boxStyle === 'Không' || boxStyle === 'Không gói') {
+        hasBox = false;
+      }
+
+      const matchFee = line.match(/\(\+([\d.,]+)/);
+      if (matchFee) {
+        boxFee = parseInt(matchFee[1].replace(/[.,]/g, ''), 10) || 0;
+      }
+
+      const matchOccasion = line.match(/Dịp:\s*(.+)$/);
+      if (matchOccasion) {
+        occasion = matchOccasion[1].trim();
+      }
+    }
+
+    if (line.includes('Người nhận:') || line.includes('Người gửi:')) {
+      const matchRecip = line.match(/Người nhận:\s*([^|]+)/);
+      if (matchRecip) {
+        recipient = matchRecip[1].trim();
+      }
+      const matchSender = line.match(/Người gửi:\s*(.+)$/);
+      if (matchSender) {
+        sender = matchSender[1].trim();
+      }
+    }
+
+    if (line.includes('Lời chúc:')) {
+      hasCard = true;
+      cardMessage = line.replace('Lời chúc:', '').trim();
+    }
+
+    if (line.includes('Mã giảm giá:')) {
+      hasVoucher = true;
+      const matchCode = line.match(/Mã giảm giá:\s*([^\s(-]+)/);
+      if (matchCode) {
+        voucherCode = matchCode[1].trim();
+      }
+      const matchDiscount = line.match(/\(-([\d.,]+)/);
+      if (matchDiscount) {
+        voucherDiscount = parseInt(matchDiscount[1].replace(/[.,]/g, ''), 10) || 0;
+      }
+    }
+  }
+
+  if (!hasBox && !hasCard && !hasVoucher) return null;
+
+  return {
+    hasBox,
+    boxStyle,
+    boxFee,
+    occasion,
+    sender,
+    recipient,
+    hasCard,
+    cardMessage,
+    hasVoucher,
+    voucherCode,
+    voucherDiscount
+  };
+};
+
 const ProfilePage = ({ initialTab = 'info' }: { initialTab?: 'info' | 'password' | 'orders' | 'birthday' }) => {
   const { user, login } = useAuth();
   const [profile, setProfile] = useState<any>(null);
@@ -642,7 +741,7 @@ const OrdersTab = () => {
 
               {/* Sản phẩm */}
               <div className="space-y-2 mb-3">
-                {order.items?.slice(0, 2).map((item: any, i: number) => (
+                {order.items?.map((item: any, i: number) => (
                   <div key={i} className="flex items-center gap-3">
                     <div className="w-12 h-12 flex-shrink-0 bg-flower-50 rounded-lg overflow-hidden">
                       <img
@@ -662,11 +761,52 @@ const OrdersTab = () => {
                     </div>
                   </div>
                 ))}
-                {order.items?.length > 2 && (
-                  <p className="text-xs text-gray-400 pl-15">
-                    +{order.items.length - 2} sản phẩm khác
-                  </p>
-                )}
+                {(() => {
+                  const gift = parseGiftFromNote(order.note);
+                  return (
+                    <>
+                      {gift?.hasBox && (
+                        <div className="flex items-center gap-3 border-t border-dashed border-gray-100 pt-2 mt-2">
+                          <div className="w-12 h-12 flex-shrink-0 bg-rose-50 rounded-lg flex items-center justify-center text-2xl">
+                            🎁
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-700 line-clamp-1">Hộp quà ({gift.boxStyle})</p>
+                            <p className="text-xs text-gray-400">
+                              x1 · {gift.boxFee.toLocaleString('vi-VN')}đ {gift.occasion ? `· Dịp: ${gift.occasion}` : ''}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      {gift?.hasCard && (
+                        <div className="flex items-center gap-3 border-t border-dashed border-gray-100 pt-2 mt-2">
+                          <div className="w-12 h-12 flex-shrink-0 bg-yellow-50/70 rounded-lg flex items-center justify-center text-2xl">
+                            ✉️
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-700 line-clamp-1">Thiệp chúc mừng</p>
+                            <p className="text-xs text-gray-400 line-clamp-2 italic" title={gift.cardMessage}>
+                              "{gift.cardMessage}"
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      {gift?.hasVoucher && (
+                        <div className="flex items-center gap-3 border-t border-dashed border-gray-100 pt-2 mt-2">
+                          <div className="w-12 h-12 flex-shrink-0 bg-green-50 rounded-lg flex items-center justify-center text-2xl">
+                            🏷️
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-700 line-clamp-1">Mã giảm giá ({gift.voucherCode})</p>
+                            <p className="text-xs text-green-600 font-medium">
+                              -{(gift.voucherDiscount || 0).toLocaleString('vi-VN')}đ
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Footer */}

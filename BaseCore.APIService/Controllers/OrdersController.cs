@@ -120,6 +120,7 @@ namespace BaseCore.APIService.Controllers
                 Status = o.Status,
                 PaymentStatus = o.PaymentStatus,
                 PaymentMethod = o.PaymentMethod,
+                Note = o.Note,
                 CreatedAt = o.CreatedAt,
                 Items = o.OrderItems.Select(oi => new OrderItemResponse
                 {

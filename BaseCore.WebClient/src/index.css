@@ -24,3 +24,8 @@ input[type=number] {
   font-weight: 800;
   letter-spacing: 1px;
 }
+
+/* Áp dụng phông chữ Quicksand và Baloo 2 cho toàn bộ trang web */
+body, button, input, select, textarea {
+  font-family: 'Quicksand', 'Baloo 2', sans-serif;
+}

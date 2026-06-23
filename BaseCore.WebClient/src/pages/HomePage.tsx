@@ -327,7 +327,6 @@ const ageRanges = [
   { label: '10-12\nTUỔI', range: '10-12', color: 'from-green-400 to-green-500', emoji: '🧸' },
   { label: '12-14\nTUỔI', range: '12-14', color: 'from-orange-400 to-orange-500', emoji: '🤖' },
   { label: '14-18\nTUỔI', range: '14-18', color: 'from-purple-400 to-purple-500', emoji: '🎮' },
-  { label: '18+\nTUỔI', range: '18+', color: 'from-pink-400 to-pink-500', emoji: '🚀' },
 ];
 
 const AgeSection = () => (
