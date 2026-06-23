@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cartApi } from '../api/cartApi';
-import { voucherApi } from '../api/voucherApi';
+import { voucherApi, Voucher, MyVoucher } from '../api/voucherApi';
 import { CartResponse } from '../types';
 import { getImageUrl } from '../utils/imageHelper';
 import { useAuth } from '../context/AuthContext';
@@ -64,6 +64,8 @@ const CartPage = () => {
   const [voucherInput, setVoucherInput] = useState('');
   const [appliedVoucher, setAppliedVoucher] = useState<{ code: string; discount: number } | null>(null);
   const [voucherMsg, setVoucherMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [availableVouchers, setAvailableVouchers] = useState<Voucher[]>([]);
+  const [showVoucherDropdown, setShowVoucherDropdown] = useState(false);
 
   const { isAuthenticated, user } = useAuth();
   const { refreshCart } = useCart();
@@ -102,8 +104,59 @@ const CartPage = () => {
         const def = res.find(a => a.isDefault);
         if (def) setSelectedAddressId(def.id);
       }).catch(() => {});
+
+      // Lấy danh sách mã giảm giá khả dụng
+      Promise.all([
+        voucherApi.getActive().catch(() => [] as Voucher[]),
+        voucherApi.getMine().catch(() => [] as MyVoucher[])
+      ]).then(([actives, mine]) => {
+        const uniqueVouchersMap = new Map<string, Voucher>();
+        // Lấy danh sách các mã đã sử dụng của người dùng
+        const usedCodes = new Set(mine.filter(mv => mv.isUsed).map(mv => mv.voucher.code));
+
+        // Ưu tiên các mã giảm giá công khai của cửa hàng (chưa sử dụng)
+        actives.forEach(v => {
+          if (v.isActive && !usedCodes.has(v.code)) {
+            uniqueVouchersMap.set(v.code, v);
+          }
+        });
+        // Ghép các mã giảm giá cá nhân chưa sử dụng của người dùng
+        mine.forEach(mv => {
+          if (!mv.isUsed && mv.voucher.isActive) {
+            uniqueVouchersMap.set(mv.voucher.code, mv.voucher);
+          }
+        });
+        setAvailableVouchers(Array.from(uniqueVouchersMap.values()));
+      }).catch(() => {});
     }
   }, [showCheckout]);
+
+  // Tự động tính toán lại / hủy bỏ mã giảm giá khi giỏ hàng hoặc các sản phẩm được chọn thay đổi
+  useEffect(() => {
+    if (appliedVoucher) {
+      const reapply = async () => {
+        if (selectedItems.length === 0) {
+          setAppliedVoucher(null);
+          setVoucherMsg(null);
+          return;
+        }
+        try {
+          const res = await voucherApi.apply(appliedVoucher.code, selectedItems);
+          if (res.valid) {
+            setAppliedVoucher({ code: appliedVoucher.code, discount: res.discount });
+          } else {
+            setAppliedVoucher(null);
+            setVoucherMsg({ ok: false, text: 'Mã không còn áp dụng cho các sản phẩm đã chọn.' });
+          }
+        } catch {
+          setAppliedVoucher(null);
+          setVoucherMsg(null);
+        }
+      };
+      reapply();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedItems, cart]);
 
   const selectedAddress = addresses.find(a => a.id === selectedAddressId);
 
@@ -782,22 +835,71 @@ const CartPage = () => {
             </div>
 
             {/* Mã giảm giá */}
-            <div className="mb-5">
+            <div className="mb-5 relative">
               <label className="block text-sm font-medium text-gray-700 mb-2">🏷️ Mã giảm giá</label>
-              <div className="flex gap-2">
-                <input
-                  value={voucherInput}
-                  onChange={(e) => { setVoucherInput(e.target.value); setVoucherMsg(null); }}
-                  placeholder="Nhập mã giảm giá..."
-                  className="flex-1 border border-gray-200 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-flower-100" />
+              <div className="flex gap-2 relative">
+                <div className="relative flex-1">
+                  <input
+                    value={voucherInput}
+                    onChange={(e) => { setVoucherInput(e.target.value); setVoucherMsg(null); }}
+                    onFocus={() => setShowVoucherDropdown(true)}
+                    placeholder="Nhập hoặc chọn mã giảm giá..."
+                    className="w-full border border-gray-200 rounded-xl p-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-flower-100" />
+                  
+                  {/* Icon toggle dropdown */}
+                  <button
+                    type="button"
+                    onClick={() => setShowVoucherDropdown(!showVoucherDropdown)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <svg className={`h-4 w-4 transition-transform ${showVoucherDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+
                 {appliedVoucher ? (
                   <button onClick={() => { setAppliedVoucher(null); setVoucherInput(''); setVoucherMsg(null); }}
-                    className="px-4 rounded-xl border border-gray-200 text-gray-500 text-sm">Bỏ</button>
+                    className="px-4 rounded-xl border border-gray-200 text-gray-500 text-sm hover:bg-gray-50 transition">Bỏ</button>
                 ) : (
                   <button onClick={applyVoucher}
-                    className="px-5 rounded-xl bg-flower-100 text-white text-sm font-semibold hover:bg-flower-150">Áp dụng</button>
+                    className="px-5 rounded-xl bg-flower-100 text-white text-sm font-semibold hover:bg-flower-150 transition">Áp dụng</button>
                 )}
               </div>
+
+              {/* Dropdown combo box */}
+              {showVoucherDropdown && (
+                <>
+                  {/* Overlay click-out */}
+                  <div className="fixed inset-0 z-10" onClick={() => setShowVoucherDropdown(false)} />
+                  
+                  <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-20 max-h-48 overflow-y-auto divide-y divide-gray-100">
+                    {availableVouchers.filter(v => v.code.toLowerCase().includes(voucherInput.toLowerCase())).length === 0 ? (
+                      <div className="p-3 text-xs text-gray-400 text-center">Không có mã giảm giá khả dụng</div>
+                    ) : (
+                      availableVouchers.filter(v => v.code.toLowerCase().includes(voucherInput.toLowerCase())).map(v => (
+                        <div
+                          key={v.id}
+                          onClick={() => {
+                            setVoucherInput(v.code);
+                            setVoucherMsg(null);
+                            setShowVoucherDropdown(false);
+                          }}
+                          className="p-3 hover:bg-flower-50/50 cursor-pointer transition text-left">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="font-bold text-sm text-gray-800 bg-flower-50 text-flower-100 px-2 py-0.5 rounded-lg border border-flower-100/30">{v.code}</span>
+                            <span className="text-xs font-bold text-red-500">Giảm {v.discountPercent}%</span>
+                          </div>
+                          {v.description && (
+                            <p className="text-xs text-gray-500 line-clamp-1">{v.description}</p>
+                          )}
+                          <p className="text-[10px] text-gray-400 mt-0.5">HSD: {new Date(v.endDate).toLocaleDateString('vi-VN')}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+
               {voucherMsg && (
                 <p className={`text-xs mt-1 ${voucherMsg.ok ? 'text-green-600' : 'text-red-500'}`}>{voucherMsg.text}</p>
               )}

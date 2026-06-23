@@ -32,11 +32,11 @@ const ImageGallery = ({ product }: { product: ProductResponse }) => {
         <img
           src={getImageUrl(images[selected]?.imageUrl)}
           alt={product.name}
-          className="w-full h-full object-contain p-6 transition duration-300"
+          className="w-full h-full object-contain p-2 transition duration-300"
         />
 
         {/* Badge giảm giá */}
-        {product.discountPercent && (
+        {(product.discountPercent ?? 0) > 0 && (
           <span className="absolute top-4 left-4 bg-red-500 text-white text-sm font-bold px-3 py-1 rounded-full">
             -{product.discountPercent}%
           </span>
@@ -792,8 +792,8 @@ const ProductDetailPage = () => {
             className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg transition flex flex-col">
 
             {/* Ảnh */}
-            <div className="relative bg-flower-50 p-3" style={{ aspectRatio: '1', width: '100%' }}>
-              {p.discountPercent && (
+            <div className="relative bg-flower-50 p-1" style={{ aspectRatio: '1', width: '100%' }}>
+              {(p.discountPercent ?? 0) > 0 && (
                 <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full z-10">
                   -{p.discountPercent}%
                 </span>
@@ -801,7 +801,7 @@ const ProductDetailPage = () => {
               <img
                 src={getImageUrl(p.imageUrl)}
                 alt={p.name}
-                className="absolute inset-0 w-full h-full object-contain p-4 group-hover:scale-105 transition duration-300"
+                className="absolute inset-0 w-full h-full object-contain p-1 group-hover:scale-105 transition duration-300"
                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
               />
             </div>

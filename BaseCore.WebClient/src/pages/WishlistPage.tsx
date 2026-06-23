@@ -142,7 +142,7 @@ const WishlistPage = () => {
                   style={{ aspectRatio: '1' }}>
 
                   {/* Badge giảm giá */}
-                  {item.discountPercent && (
+                  {(item.discountPercent ?? 0) > 0 && (
                     <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full z-10">
                       -{item.discountPercent}%
                     </span>
@@ -160,7 +160,7 @@ const WishlistPage = () => {
                   <img
                     src={getImageUrl(item.productImage)}
                     alt={item.productName}
-                    className="absolute inset-0 w-full h-full object-contain p-4 group-hover:scale-105 transition duration-300"
+                    className="absolute inset-0 w-full h-full object-contain p-1 group-hover:scale-105 transition duration-300"
                     onError={(e) => { e.currentTarget.style.display = 'none'; }}
                   />
 

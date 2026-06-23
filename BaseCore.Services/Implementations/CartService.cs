@@ -252,6 +252,10 @@ namespace BaseCore.Services.Implementations
             if (voucher == null || !voucher.IsActive) return (0, null);
             if (now < voucher.StartDate || now > voucher.EndDate) return (0, null);
 
+            // Kiểm tra xem người dùng đã sử dụng mã này chưa
+            var alreadyUsed = await _context.UserVouchers.AnyAsync(x => x.UserId == userId && x.VoucherId == voucher.Id && x.IsUsed);
+            if (alreadyUsed) return (0, null);
+
             // Mã sinh nhật/được tặng: phải thuộc user. Mã công khai khác: ai cũng dùng.
             var owned = await _context.UserVouchers.AnyAsync(x => x.UserId == userId && x.VoucherId == voucher.Id && !x.IsUsed);
             if (!owned && voucher.ScopeType == "Birthday") return (0, null);
@@ -295,6 +299,11 @@ namespace BaseCore.Services.Implementations
             if (!v.IsActive) return new VoucherApplyResult { Valid = false, Message = "Mã không còn hiệu lực" };
             if (now < v.StartDate) return new VoucherApplyResult { Valid = false, Message = "Mã chưa đến ngày sử dụng" };
             if (now > v.EndDate) return new VoucherApplyResult { Valid = false, Message = "Mã đã hết hạn" };
+
+            // Kiểm tra xem người dùng đã sử dụng mã này chưa
+            var alreadyUsed = await _context.UserVouchers.AnyAsync(x => x.UserId == userId && x.VoucherId == v.Id && x.IsUsed);
+            if (alreadyUsed) return new VoucherApplyResult { Valid = false, Message = "Bạn đã sử dụng mã giảm giá này rồi" };
+
             var owned = await _context.UserVouchers.AnyAsync(x => x.UserId == userId && x.VoucherId == v.Id && !x.IsUsed);
             if (!owned && v.ScopeType == "Birthday") return new VoucherApplyResult { Valid = false, Message = "Mã này không dành cho bạn" };
 

@@ -1,24 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { productApi } from '../api/productApi';
 import { categoryApi, CategoryResponse } from '../api/categoryApi';
 import { ProductResponse } from '../types';
 import ProductCard from '../components/ProductCard';
 import { getImageUrl } from '../utils/imageHelper';
-import { useAuth } from '../context/AuthContext';
-import { useCart } from '../context/CartContext';
-import { useWishlist } from '../context/WishlistContext';
-import { cartApi } from '../api/cartApi';
-import { wishlistApi } from '../api/wishlistApi';
 
-// ========== HERO BANNER ==========
 const heroBanners = [
   {
     title: 'Bộ sưu tập đặc biệt',
     subtitle: 'Bộ sưu tập cầu thủ huyền thoại',
     script: 'Messi • CR7 • Mbappé • Vini Jr',  
     cta: 'Xem sản phẩm',
-    link: '/products?theme=Sports',
+    link: '/products',
     image: '/images/banners/1.jpg',
     bgColor: 'from-green-100 to-white',
     dark: false,
@@ -38,7 +32,7 @@ const heroBanners = [
     subtitle: 'Phi thuyền huyền thoại Star Wars',
     script: 'Bộ sưu tập Star Wars™ mới nhất',
     cta: 'Khám phá ngay',
-    link: '/products?theme=Star+Wars',
+    link: '/products',
     image: '/images/products/TIE-Interceptor-1.png',
     bgColor: 'from-slate-200 to-white',
     dark: false,
@@ -65,8 +59,8 @@ const HeroBanner = () => {
   return (
     <div className={`bg-gradient-to-r ${banner.bgColor} transition-colors duration-700 overflow-hidden`}
       style={{ minHeight: '420px' }}>
-      <div className="max-w-7xl mx-auto px-10 flex items-center justify-between"
-        style={{ minHeight: '420px' }}>
+      <Link to={banner.link} className="max-w-7xl mx-auto px-10 flex items-center justify-between block cursor-pointer"
+        style={{ minHeight: '420px', textDecoration: 'none' }}>
 
         {/* Bên trái — Nội dung */}
         <div className="flex-1 py-12 z-10"
@@ -88,13 +82,13 @@ const HeroBanner = () => {
           </p>
 
           {/* Nút CTA */}
-          <Link to={banner.link}
-            className="inline-flex items-center gap-2 px-8 py-3 bg-flower-100 text-white font-semibold rounded-full hover:bg-flower-150 transition text-base shadow-md hover:shadow-lg">
+          <span
+            className="inline-flex items-center gap-2 px-8 py-3 bg-flower-100 text-white font-semibold rounded-full hover:bg-flower-150 transition text-base shadow-md hover:shadow-lg animate-bounce-subtle">
             {banner.cta}
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-          </Link>
+          </span>
         </div>
 
         {/* Bên phải — Ảnh với hiệu ứng mờ trái → phải */}
@@ -119,7 +113,7 @@ const HeroBanner = () => {
             style={{ maxWidth: '480px' }}
           />
         </div>
-      </div>
+      </Link>
 
       {/* Dots */}
       <div className="flex justify-center gap-2 pb-5">
@@ -252,55 +246,12 @@ const ProductSection = ({
   bannerBg?: string;
 }) => {
   const [startIndex, setStartIndex] = useState(0);
-  const [addedCartId, setAddedCartId] = useState<number | null>(null);
-  const [wishlistedIds, setWishlistedIds] = useState<Set<number>>(new Set());
   const visibleCount = 3; // hiện 3 sản phẩm cùng lúc
-
-  const { isAuthenticated } = useAuth();
-  const { refreshCart } = useCart();
-  const { refreshWishlist } = useWishlist();
-  const navigate = useNavigate();
 
   const goPrev = () => setStartIndex(prev => Math.max(0, prev - 1));
   const goNext = () => setStartIndex(prev =>
     Math.min(products.length - visibleCount, prev + 1)
   );
-
-  const handleAddToCart = async (e: React.MouseEvent, productId: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!isAuthenticated) { navigate('/login'); return; }
-    try {
-      await cartApi.addToCart(productId, 1);
-      refreshCart();
-      setAddedCartId(productId);
-      setTimeout(() => setAddedCartId(null), 2000);
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Có lỗi xảy ra');
-    }
-  };
-
-  const handleToggleWishlist = async (e: React.MouseEvent, productId: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!isAuthenticated) { navigate('/login'); return; }
-    try {
-      if (wishlistedIds.has(productId)) {
-        await wishlistApi.remove(productId);
-        setWishlistedIds(prev => {
-          const s = new Set(prev);
-          s.delete(productId);
-          return s;
-        });
-      } else {
-        await wishlistApi.add(productId);
-        setWishlistedIds(prev => new Set(prev).add(productId));
-      }
-      refreshWishlist();
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   const visible = products.slice(startIndex, startIndex + visibleCount);
 
@@ -333,7 +284,7 @@ const ProductSection = ({
         </button>
 
         {/* Banner trái */}
-        <div className={`w-72 flex-shrink-0 rounded-2xl overflow-hidden bg-gradient-to-br ${bannerBg} relative hover:shadow-xl`}
+        <Link to={link} className={`w-72 flex-shrink-0 rounded-2xl overflow-hidden bg-gradient-to-br ${bannerBg} relative hover:shadow-xl block`}
           style={{ minHeight: '480px' }}>
           {bannerImage ? (
             <img
@@ -346,86 +297,12 @@ const ProductSection = ({
               🧱
             </div>
           )}
-        </div>
+        </Link>
 
         {/* Sản phẩm */}
         <div className="flex-1 grid grid-cols-3 gap-4" >
           {visible.map(p => (
-            <div key={p.id}
-              className="bg-white border border-gray-100 rounded-2xl overflow-hidden flex flex-col hover:shadow-xl transition">
-
-              {/* Ảnh */}
-              <Link to={`/products/${p.id}`} className="relative bg-flower-50 p-3"
-                style={{ aspectRatio: '1' }}>
-                {p.discountPercent && (
-                  <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full z-10">
-                    -{p.discountPercent}%
-                  </span>
-                )}
-                <img
-                  src={getImageUrl(p.imageUrl)}
-                  alt={p.name}
-                  className="w-full h-full object-contain"
-                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                />
-              </Link>
-
-              {/* Thông tin */}
-              <div className="p-3 flex flex-col flex-1">
-                <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">
-                  {p.categoryName} · {p.setNumber}
-                </p>
-                <Link to={`/products/${p.id}`}
-                  className="text-sm font-medium text-gray-700 hover:text-flower-100 transition line-clamp-2 flex-1">
-                  {p.name}
-                </Link>
-
-                {/* Giá */}
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="text-flower-100 font-bold text-base">
-                    {p.price.toLocaleString('vi-VN')}đ
-                  </span>
-                  {p.oldPrice && (
-                    <span className="text-gray-400 text-xs line-through">
-                      {p.oldPrice.toLocaleString('vi-VN')}đ
-                    </span>
-                  )}
-                </div>
-
-                {/* Nút thêm vào giỏ + yêu thích */}
-                <div className="flex gap-2 mt-3">
-                  <button
-                    onClick={(e) => handleAddToCart(e, p.id)}
-                    disabled={p.stockQuantity === 0}
-                    className={`flex-1 text-white text-sm font-semibold py-2 rounded-lg transition
-                      ${p.stockQuantity === 0
-                        ? 'bg-gray-300 cursor-not-allowed'
-                        : addedCartId === p.id
-                        ? 'bg-green-500'
-                        : 'bg-flower-100 hover:bg-flower-150'}`}>
-                    {p.stockQuantity === 0
-                      ? 'Hết hàng'
-                      : addedCartId === p.id
-                      ? '✓ Đã thêm'
-                      : 'Thêm Vào Giỏ'}
-                  </button>
-
-                  <button
-                    onClick={(e) => handleToggleWishlist(e, p.id)}
-                    className={`w-9 h-9 border rounded-lg flex items-center justify-center transition
-                      ${wishlistedIds.has(p.id)
-                        ? 'bg-red-50 border-red-200 text-red-500'
-                        : 'border-gray-200 text-gray-400 hover:border-red-200 hover:text-red-500'}`}>
-                    <svg className="h-4 w-4"
-                      fill={wishlistedIds.has(p.id) ? 'currentColor' : 'none'}
-                      viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
+            <ProductCard key={p.id} product={p} />
           ))}
         </div>
 

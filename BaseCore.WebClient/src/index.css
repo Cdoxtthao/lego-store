@@ -12,10 +12,11 @@ input[type=number] {
   -moz-appearance: textfield;
 }
 
-/* Phông chữ thương hiệu 3TL-Store — tròn đều, đẹp, nét đồng đều (không đậm/nhạt) */
+/* Phông chữ thương hiệu 3TL-Store — chữ viết, in nghiêng, nét thanh đậm */
 .brand-wordmark {
-  font-family: 'Baloo 2', 'Quicksand', sans-serif;
+  font-family: 'Dancing Script', 'Playball', cursive;
   font-weight: 700;
+  font-style: italic;
   letter-spacing: 0.5px;
 }
 /* Hậu tố vai trò (ADMIN / SELLER / SUPPLIER) */

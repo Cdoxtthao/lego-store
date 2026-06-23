@@ -114,15 +114,15 @@ namespace BaseCore.Repository.Implementations
                 "price_desc" => query.OrderByDescending(p => p.Price),
                 "newest" => query.OrderByDescending(p => p.CreatedAt),
                 // Bán chạy nhất: tính theo tổng số lượng đã bán qua OrderItems,
-                // loại trừ đơn hàng đã hủy — tự cập nhật theo đơn hàng thực tế
+                // chỉ tính các đơn hàng đã nhận hàng (Delivered)
                 "bestseller" => query.OrderByDescending(p =>
                                          p.OrderItems
-                                            .Where(oi => oi.Order.Status != "Cancelled")
+                                            .Where(oi => oi.Order.Status == "Delivered")
                                             .Sum(oi => oi.Quantity))
                                      .ThenByDescending(p => p.CreatedAt),
                 _ => query.OrderByDescending(p => p.IsFeatured)
                                      .ThenByDescending(p => p.OrderItems
-                                                        .Where(oi => oi.Order.Status != "Cancelled")
+                                                        .Where(oi => oi.Order.Status == "Delivered")
                                                         .Sum(oi => oi.Quantity))
                                      .ThenByDescending(p => p.CreatedAt)
             };
@@ -198,7 +198,7 @@ namespace BaseCore.Repository.Implementations
             if (ids.Count == 0) return new Dictionary<int, int>();
 
             return await _context.OrderItems
-                .Where(oi => ids.Contains(oi.ProductId) && oi.Order.Status != "Cancelled")
+                .Where(oi => ids.Contains(oi.ProductId) && oi.Order.Status == "Delivered")
                 .GroupBy(oi => oi.ProductId)
                 .Select(g => new { ProductId = g.Key, Total = g.Sum(oi => oi.Quantity) })
                 .ToDictionaryAsync(x => x.ProductId, x => x.Total);

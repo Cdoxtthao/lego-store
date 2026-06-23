@@ -43,7 +43,7 @@ const ProductCard = ({ product }: Props) => {
 
   return (
     <Link to={`/products/${product.id}`}
-      className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg transition duration-300">
+      className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg transition duration-300 flex flex-col h-full">
 
       {/* Ảnh */}
       <div className=" bg-flower-50 overflow-hidden relative" style={{ aspectRatio: '1' }}>
@@ -56,7 +56,7 @@ const ProductCard = ({ product }: Props) => {
         )}
 
         {/* Badge giảm giá */}
-        {product.discountPercent && (
+        {(product.discountPercent ?? 0) > 0 && (
           <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
             -{product.discountPercent}%
           </span>

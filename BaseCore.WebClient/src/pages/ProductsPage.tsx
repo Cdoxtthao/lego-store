@@ -294,9 +294,9 @@ const ProductListCard = ({ product }: { product: ProductResponse }) => {
 
       {/* Ảnh */}
       <Link to={`/products/${product.id}`}
-        className="relative bg-flower-50 p-4 overflow-hidden"
+        className="relative bg-flower-50 p-1 overflow-hidden"
         style={{ aspectRatio: '1' }}>
-        {product.discountPercent && (
+        {(product.discountPercent ?? 0) > 0 && (
           <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full z-10">
             -{product.discountPercent}%
           </span>

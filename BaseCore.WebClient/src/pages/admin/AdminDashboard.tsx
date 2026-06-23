@@ -630,8 +630,8 @@ const DashboardHome = () => {
   };
 
   if (loading) return (
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-      {[...Array(7)].map((_, i) => (
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      {[...Array(6)].map((_, i) => (
         <div key={i} className="h-28 bg-gray-100 rounded-2xl animate-pulse" />
       ))}
     </div>
@@ -672,14 +672,6 @@ const DashboardHome = () => {
       onClick: () => navigate('/admin/orders?status=Cancelled')
     },
     {
-      label: 'Đã hoàn',
-      value: stats?.deliveredOrders?.toString() || '0',
-      icon: '🎉',
-      color: 'bg-emerald-100 text-emerald-700',
-      clickable: true,
-      onClick: () => navigate('/admin/orders?status=Delivered')
-    },
-    {
       label: 'Biên lai đang chờ',
       value: stats?.pendingReceipts?.toString() || '0',
       icon: '📦',
@@ -701,7 +693,7 @@ const DashboardHome = () => {
     <div className="space-y-6">
 
       {/* Stats cards - Alternating between pink and white */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
         {cards.map((card, index) => {
           const isPink = index % 2 === 0;
           return (

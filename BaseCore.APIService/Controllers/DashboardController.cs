@@ -51,11 +51,11 @@ namespace BaseCore.APIService.Controllers
                 .Distinct()
                 .CountAsync();
 
-            // Tính lãi (doanh thu tính bằng đồng dựa theo lãi = giá bán - giá nhập)
+            // Tính lãi (doanh thu tính bằng đồng dựa theo lãi = giá bán - giá nhập) - chỉ tính đơn đã giao (Delivered)
             var totalProfit = await _context.OrderItems
                 .Include(oi => oi.Order)
                 .Include(oi => oi.Product)
-                .Where(oi => oi.Order.Status != "Cancelled" && oi.Order.Status != "Returned")
+                .Where(oi => oi.Order.Status == "Delivered")
                 .SumAsync(oi => (decimal?)(oi.Price - oi.Product.ImportPrice) * oi.Quantity) ?? 0;
 
             // Trừ tiền biên lai nhập kho đã xác nhận — trừ TOÀN BỘ cho cả Admin và Seller
@@ -91,7 +91,7 @@ namespace BaseCore.APIService.Controllers
                 var end = date.AddDays(1);
 
                 var revenue = await _context.Orders
-                    .Where(o => o.Status != "Cancelled" && o.Status != "Returned"
+                    .Where(o => o.Status == "Delivered"
                         && o.CreatedAt >= start
                         && o.CreatedAt < end)
                     .SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
@@ -112,7 +112,7 @@ namespace BaseCore.APIService.Controllers
             var details = await _context.OrderItems
                 .Include(oi => oi.Product)
                 .Include(oi => oi.Order)
-                .Where(oi => oi.Order.Status != "Cancelled" && oi.Order.Status != "Returned")
+                .Where(oi => oi.Order.Status == "Delivered")
                 .GroupBy(oi => oi.ProductId)
                 .Select(g => new
                 {
@@ -155,7 +155,7 @@ namespace BaseCore.APIService.Controllers
             var topProducts = await _context.OrderItems
                 .Include(oi => oi.Product)
                 .Include(oi => oi.Order)
-                .Where(oi => oi.Order.Status != "Cancelled" && oi.Order.Status != "Returned")
+                .Where(oi => oi.Order.Status == "Delivered")
                 .GroupBy(oi => oi.ProductId)
                 .Select(g => new
                 {
@@ -183,9 +183,7 @@ namespace BaseCore.APIService.Controllers
                 {
                     id = o.Id,
                     customerName = o.User.FullName,
-                    revenue = o.Status == "Cancelled" ? 0 
-                            : (o.Status == "Returned" || o.Status == "Refunded") ? -o.TotalAmount 
-                            : o.TotalAmount,
+                    revenue = o.Status == "Delivered" ? o.TotalAmount : 0,
                     totalAmount = o.TotalAmount,
                     status = o.Status,
                     createdAt = o.CreatedAt,
