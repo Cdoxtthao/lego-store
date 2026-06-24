@@ -139,7 +139,7 @@ const ProductDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const [product, setProduct] = useState<ProductResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [quantity, setQuantity] = useState<number | ''>(1);
+  const [quantity, setQuantity] = useState(1);
   const [addedToCart, setAddedToCart] = useState(false);
   const [maxWarning, setMaxWarning] = useState(false);
   const [reviews, setReviews] = useState<ReviewResponse[]>([]);
@@ -228,8 +228,7 @@ const ProductDetailPage = () => {
       return;
     }
     try {
-      const q = quantity === '' ? 1 : quantity;
-      await cartApi.addToCart(product?.id ?? 0, q);
+      await cartApi.addToCart(product?.id ?? 0, quantity);
       setAddedToCart(true);
       refreshCart();
       setTimeout(() => setAddedToCart(false), 2000);
@@ -288,13 +287,9 @@ const ProductDetailPage = () => {
     </div>
   );
 
-  const handleQuantityChange = (val: number | '') => {
-    if (val === '') {
-      setQuantity('');
-      return;
-    }
+  const handleQuantityChange = (val: number) => {
     if (val < 1) return;
-    if (product && val > product.stockQuantity) { 
+    if (val > product.stockQuantity) { 
       setQuantity(product.stockQuantity);
       setMaxWarning(true);
       setTimeout(() => setMaxWarning(false), 3000);
@@ -558,11 +553,8 @@ const ProductDetailPage = () => {
 
                     {/* Nút giảm */}
                     <button
-                      onClick={() => {
-                        const q = quantity === '' ? 1 : quantity;
-                        handleQuantityChange(q - 1);
-                      }}
-                      disabled={quantity === '' || quantity <= 1}
+                      onClick={() => handleQuantityChange(quantity - 1)}
+                      disabled={quantity <= 1}
                       className="w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-flower-50 transition disabled:opacity-30">
                       −
                     </button>
@@ -573,29 +565,14 @@ const ProductDetailPage = () => {
                       min={1}
                       max={product.stockQuantity}
                       value={quantity}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === '') {
-                          handleQuantityChange('');
-                        } else {
-                          handleQuantityChange(parseInt(val, 10));
-                        }
-                      }}
-                      onBlur={() => {
-                        if (quantity === '' || quantity < 1) {
-                          setQuantity(1);
-                        }
-                      }}
+                      onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
                       className="w-16 h-10 text-center font-semibold border-x border-gray-200 focus:outline-none focus:bg-flower-50 text-sm"
                     />
 
                     {/* Nút tăng */}
                     <button
-                      onClick={() => {
-                        const q = quantity === '' ? 0 : quantity;
-                        handleQuantityChange(q + 1);
-                      }}
-                      disabled={quantity !== '' && quantity >= product.stockQuantity}
+                      onClick={() => handleQuantityChange(quantity + 1)}
+                      disabled={quantity >= product.stockQuantity}
                       className="w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-flower-50 transition disabled:opacity-30">
                       +
                     </button>

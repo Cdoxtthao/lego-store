@@ -93,6 +93,7 @@ export interface CreateProductRequest {
   highlights?: string;
   setNumber?: string;
   isFeatured?: boolean;
+  discountPercent?: number;
   images?: string[];
 }
 
@@ -113,6 +114,7 @@ export interface UpdateProductRequest {
   setNumber?: string;
   isFeatured?: boolean;
   isActive?: boolean;
+  discountPercent?: number;
   images?: string[];
 }
 

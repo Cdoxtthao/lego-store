@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cartApi } from '../api/cartApi';
-import { voucherApi, Voucher, MyVoucher } from '../api/voucherApi';
+import { voucherApi, Voucher } from '../api/voucherApi';
 import { CartResponse } from '../types';
 import { getImageUrl } from '../utils/imageHelper';
 import { useAuth } from '../context/AuthContext';
@@ -105,22 +105,9 @@ const CartPage = () => {
         if (def) setSelectedAddressId(def.id);
       }).catch(() => {});
 
-      // Lấy danh sách mã giảm giá khả dụng
-      Promise.all([
-        voucherApi.getActive().catch(() => [] as Voucher[]),
-        voucherApi.getMine().catch(() => [] as MyVoucher[])
-      ]).then(([actives, mine]) => {
+      // Lấy danh sách mã giảm giá khả dụng (chỉ mã của tôi chưa dùng và còn hoạt động)
+      voucherApi.getMine().then((mine) => {
         const uniqueVouchersMap = new Map<string, Voucher>();
-        // Lấy danh sách các mã đã sử dụng của người dùng
-        const usedCodes = new Set(mine.filter(mv => mv.isUsed).map(mv => mv.voucher.code));
-
-        // Ưu tiên các mã giảm giá công khai của cửa hàng (chưa sử dụng)
-        actives.forEach(v => {
-          if (v.isActive && !usedCodes.has(v.code)) {
-            uniqueVouchersMap.set(v.code, v);
-          }
-        });
-        // Ghép các mã giảm giá cá nhân chưa sử dụng của người dùng
         mine.forEach(mv => {
           if (!mv.isUsed && mv.voucher.isActive) {
             uniqueVouchersMap.set(mv.voucher.code, mv.voucher);

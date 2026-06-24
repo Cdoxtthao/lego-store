@@ -47,6 +47,7 @@ const statusLabels: Record<string, string> = {
   Confirmed:       '✅ Đã xác nhận',
   Disputed:        '⚠️ Đang khiếu nại',
   Resolved:        '🔧 Đã giải quyết',
+  Cancelled:       '❌ Đã hủy',
 };
 const statusColors: Record<string, string> = {
   Pending:         'bg-amber-50 text-amber-600 border-amber-200',
@@ -55,6 +56,7 @@ const statusColors: Record<string, string> = {
   Confirmed:       'bg-emerald-50 text-emerald-600 border-emerald-200',
   Disputed:        'bg-red-50 text-red-600 border-red-200',
   Resolved:        'bg-purple-50 text-purple-600 border-purple-200',
+  Cancelled:       'bg-gray-50 text-gray-500 border-gray-200',
 };
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -69,7 +71,7 @@ const SupplierReceipts = () => {
   const [filter, setFilter]           = useState(initStatus);
   const [stats, setStats]             = useState<any>(null);
   const [selected, setSelected]       = useState<Receipt | null>(null);
-  const [actionModal, setActionModal] = useState<'confirm' | 'dispute' | null>(null);
+  const [actionModal, setActionModal] = useState<'confirm' | 'dispute' | 'resolve-dispute' | 'reject-dispute' | null>(null);
   const [note, setNote]               = useState('');
   const [saving, setSaving]           = useState(false);
   const [search, setSearch]           = useState('');
@@ -321,6 +323,22 @@ const SupplierReceipts = () => {
                         </button>
                       </div>
                     )}
+
+                    {/* Supplier actions: can resolve or reject when Disputed */}
+                    {isSupplier && r.status === 'Disputed' && (
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => { setSelected(r); setActionModal('resolve-dispute'); }}
+                          className="text-xs px-3 py-1.5 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition font-medium">
+                          Giải quyết
+                        </button>
+                        <button
+                          onClick={() => { setSelected(r); setActionModal('reject-dispute'); }}
+                          className="text-xs px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium">
+                          Hủy
+                        </button>
+                      </div>
+                    )}
                     
                     {/* Seller actions: can confirm when proposal Pending or request PendingSeller */}
                     {isSeller && ((r.isFromProposal && r.status === 'Pending') || (!r.isFromProposal && r.status === 'PendingSeller')) && (
@@ -341,6 +359,7 @@ const SupplierReceipts = () => {
                     {/* Default: Chi tiết */}
                     {!(
                       (isSupplier && r.status === 'PendingSupplier') ||
+                      (isSupplier && r.status === 'Disputed') ||
                       (isSeller && ((r.isFromProposal && r.status === 'Pending') || (!r.isFromProposal && r.status === 'PendingSeller')))
                     ) && (
                       <button
@@ -369,6 +388,8 @@ const SupplierReceipts = () => {
                 <h3 className="font-bold text-gray-800">
                   {actionModal === 'confirm' ? '✅ Xác nhận biên lai'
                     : actionModal === 'dispute' ? '⚠️ Khiếu nại biên lai'
+                    : actionModal === 'resolve-dispute' ? '🔧 Giải quyết khiếu nại'
+                    : actionModal === 'reject-dispute' ? '❌ Hủy khiếu nại'
                     : '📋 Chi tiết biên lai'}
                 </h3>
                 <p className="text-xs text-gray-400 mt-0.5">{selected.receiptCode}</p>
@@ -433,7 +454,10 @@ const SupplierReceipts = () => {
               {actionModal && (
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                    {actionModal === 'confirm' ? 'Ghi chú xác nhận (tuỳ chọn)' : 'Lý do khiếu nại *'}
+                    {actionModal === 'confirm' ? 'Ghi chú xác nhận (tuỳ chọn)'
+                      : actionModal === 'dispute' ? 'Lý do khiếu nại *'
+                      : actionModal === 'resolve-dispute' ? 'Lý do giải quyết *'
+                      : 'Lý do hủy *'}
                   </label>
                   <textarea
                     value={note}
@@ -442,7 +466,9 @@ const SupplierReceipts = () => {
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-flower-100"
                     placeholder={actionModal === 'confirm'
                       ? 'Nhập ghi chú nếu cần...'
-                      : 'Mô tả sai lệch, ví dụ: thiếu hàng, sai số lượng...'}
+                      : actionModal === 'dispute' ? 'Mô tả sai lệch, ví dụ: thiếu hàng, sai số lượng...'
+                      : actionModal === 'resolve-dispute' ? 'Nhập lý do xác nhận và tạo biên lai mới...'
+                      : 'Nhập lý do hủy biên lai/khiếu nại...'}
                   />
                 </div>
               )}
@@ -467,6 +493,18 @@ const SupplierReceipts = () => {
                   {saving ? 'Đang gửi...' : '⚠️ Gửi khiếu nại'}
                 </button>
               )}
+              {actionModal === 'resolve-dispute' && (
+                <button onClick={handleAction} disabled={saving || !note.trim()}
+                  className="flex-1 py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-medium hover:bg-emerald-600 transition disabled:opacity-50">
+                  {saving ? 'Đang gửi...' : '✅ Xác nhận giải quyết'}
+                </button>
+              )}
+              {actionModal === 'reject-dispute' && (
+                <button onClick={handleAction} disabled={saving || !note.trim()}
+                  className="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-medium hover:bg-red-600 transition disabled:opacity-50">
+                  {saving ? 'Đang gửi...' : '❌ Hủy khiếu nại'}
+                </button>
+              )}
               {!actionModal && (
                 (isSupplier && selected.status === 'PendingSupplier') ||
                 (isSeller && ((selected.isFromProposal && selected.status === 'Pending') || (!selected.isFromProposal && selected.status === 'PendingSeller')))
@@ -481,6 +519,20 @@ const SupplierReceipts = () => {
                     onClick={() => setActionModal('dispute')}
                     className="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-medium hover:bg-red-600 transition">
                     Khiếu nại
+                  </button>
+                </>
+              )}
+              {!actionModal && isSupplier && selected.status === 'Disputed' && (
+                <>
+                  <button
+                    onClick={() => setActionModal('resolve-dispute')}
+                    className="flex-1 py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-medium hover:bg-emerald-600 transition">
+                    Giải quyết
+                  </button>
+                  <button
+                    onClick={() => setActionModal('reject-dispute')}
+                    className="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-medium hover:bg-red-600 transition">
+                    Hủy
                   </button>
                 </>
               )}

@@ -24,23 +24,6 @@ namespace BaseCore.APIService.Controllers
         public async Task<IActionResult> GetAll([FromQuery] ProductSearchRequest request)
         {
             var result = await _service.GetAllAsync(request);
-            var now = DateTime.UtcNow;
-            var activePromotion = await _context.Promotions
-                .Where(p => p.IsActive && p.StartDate <= now && p.EndDate >= now)
-                .OrderByDescending(p => p.DiscountPercent)
-                .FirstOrDefaultAsync();
-            if (activePromotion != null)
-            {
-                var itemsList = result.Items.ToList();
-                foreach (var item in itemsList)
-                {
-                    if (!item.OldPrice.HasValue || item.OldPrice == 0)
-                        item.OldPrice = item.Price;
-                    item.Price = Math.Round(item.OldPrice.Value * (1 - activePromotion.DiscountPercent / 100m), 0);
-                    item.DiscountPercent = activePromotion.DiscountPercent;
-                }
-                result.Items = itemsList;
-            }
             return Ok(result);
         }
 
@@ -49,21 +32,6 @@ namespace BaseCore.APIService.Controllers
         public async Task<IActionResult> GetFeatured([FromQuery] int count = 8)
         {
             var result = await _service.GetFeaturedAsync(count);
-            var now = DateTime.UtcNow;
-            var activePromotion = await _context.Promotions
-                .Where(p => p.IsActive && p.StartDate <= now && p.EndDate >= now)
-                .OrderByDescending(p => p.DiscountPercent)
-                .FirstOrDefaultAsync();
-            if (activePromotion != null)
-            {
-                foreach (var item in result)
-                {
-                    if (!item.OldPrice.HasValue || item.OldPrice == 0)
-                        item.OldPrice = item.Price;
-                    item.Price = Math.Round(item.OldPrice.Value * (1 - activePromotion.DiscountPercent / 100m), 0);
-                    item.DiscountPercent = activePromotion.DiscountPercent;
-                }
-            }
             return Ok(result);
         }
 
@@ -73,19 +41,6 @@ namespace BaseCore.APIService.Controllers
         {
             var result = await _service.GetByIdAsync(id);
             if (result == null) return NotFound();
-
-            var now = DateTime.UtcNow;
-            var activePromotion = await _context.Promotions
-                .Where(p => p.IsActive && p.StartDate <= now && p.EndDate >= now)
-                .OrderByDescending(p => p.DiscountPercent)
-                .FirstOrDefaultAsync();
-            if (activePromotion != null)
-            {
-                if (!result.OldPrice.HasValue || result.OldPrice == 0)
-                    result.OldPrice = result.Price;
-                result.Price = Math.Round(result.OldPrice.Value * (1 - activePromotion.DiscountPercent / 100m), 0);
-                result.DiscountPercent = activePromotion.DiscountPercent;
-            }
             return Ok(result);
         }
 

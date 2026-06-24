@@ -26,6 +26,7 @@ namespace BaseCore.Services.Implementations
                 Description = product.Description,
                 Price = product.Price,
                 OldPrice = product.OldPrice,
+                DiscountPercent = product.DiscountPercent > 0 ? product.DiscountPercent : null,
                 ImportPrice = product.ImportPrice,
                 StockQuantity = product.StockQuantity,
                 CategoryId = product.CategoryId,
@@ -113,7 +114,16 @@ namespace BaseCore.Services.Implementations
                 Highlights = request.Highlights,
                 SetNumber = request.SetNumber,
                 IsFeatured = request.IsFeatured,
+                DiscountPercent = request.DiscountPercent,
             };
+            if (product.DiscountPercent > 0 && product.OldPrice.HasValue && product.OldPrice.Value > 0)
+            {
+                product.Price = Math.Round(product.OldPrice.Value * (1 - product.DiscountPercent / 100m), 0);
+            }
+            else if (product.DiscountPercent == 0 && product.OldPrice.HasValue && product.OldPrice.Value > 0)
+            {
+                product.Price = product.OldPrice.Value;
+            }
 
             var created = await _productRepository.AddAsync(product);
             return MapToResponse(created, 0); // sản phẩm vừa tạo, chưa có đơn hàng nào
@@ -141,6 +151,15 @@ namespace BaseCore.Services.Implementations
             if (request.Highlights != null) product.Highlights = request.Highlights;
             if (request.SetNumber != null) product.SetNumber = request.SetNumber;
             if (request.IsFeatured.HasValue) product.IsFeatured = request.IsFeatured.Value;
+            if (request.DiscountPercent.HasValue) product.DiscountPercent = request.DiscountPercent.Value;
+            if (product.DiscountPercent > 0 && product.OldPrice.HasValue && product.OldPrice.Value > 0)
+            {
+                product.Price = Math.Round(product.OldPrice.Value * (1 - product.DiscountPercent / 100m), 0);
+            }
+            else if (product.DiscountPercent == 0 && product.OldPrice.HasValue && product.OldPrice.Value > 0)
+            {
+                product.Price = product.OldPrice.Value;
+            }
             product.UpdatedAt = DateTime.UtcNow;
 
             await _productRepository.UpdateAsync(product);

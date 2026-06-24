@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using Microsoft.AspNetCore.SignalR;
+using BaseCore.APIService.Hubs;
+using BaseCore.APIService.Helpers;
 
 namespace BaseCore.APIService.Controllers
 {
@@ -12,9 +15,13 @@ namespace BaseCore.APIService.Controllers
     public class SupplierReceiptsController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IHubContext<ChatHub> _hubContext;
 
-        public SupplierReceiptsController(AppDbContext context)
-            => _context = context;
+        public SupplierReceiptsController(AppDbContext context, IHubContext<ChatHub> hubContext)
+        {
+            _context = context;
+            _hubContext = hubContext;
+        }
 
         private int GetUserId()
             => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
@@ -22,10 +29,6 @@ namespace BaseCore.APIService.Controllers
         private string GetUserRole()
             => User.FindFirst(ClaimTypes.Role)?.Value ?? "";
 
-        // ─────────────────────────────────────────────────────────────────────
-        // GET /api/SupplierReceipts
-        // Admin: xem tất cả biên lai. Supplier: chỉ thấy biên lai của mình.
-        // ─────────────────────────────────────────────────────────────────────
         [HttpGet]
         [Authorize(Roles = "Admin,Supplier,Seller")]
         public async Task<IActionResult> GetAll([FromQuery] string? status = null)
@@ -72,9 +75,6 @@ namespace BaseCore.APIService.Controllers
             return Ok(list);
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // GET /api/SupplierReceipts/{id}
-        // ─────────────────────────────────────────────────────────────────────
         [HttpGet("{id}")]
         [Authorize(Roles = "Admin,Supplier,Seller")]
         public async Task<IActionResult> GetById(int id)
@@ -117,11 +117,6 @@ namespace BaseCore.APIService.Controllers
             return Ok(receipt);
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // POST /api/SupplierReceipts
-        // Admin tạo biên lai khi nhận hàng thực tế từ Supplier.
-        // Ngay khi tạo, tồn kho sản phẩm được cập nhật.
-        // ─────────────────────────────────────────────────────────────────────
         [HttpPost]
         [Authorize(Roles = "Admin,Seller")]
         public async Task<IActionResult> Create([FromBody] CreateReceiptRequest req)
@@ -140,12 +135,12 @@ namespace BaseCore.APIService.Controllers
             {
                 ReceiptCode    = code,
                 SupplierId     = req.SupplierId,
-                SellerId       = GetUserId(), // Logged in Seller
+                SellerId       = GetUserId(),    
                 ProductId      = req.ProductId,
                 Quantity       = req.Quantity,
                 UnitPrice      = req.UnitPrice,
                 TotalAmount    = total,
-                Status         = "PendingSupplier", // Seller requested, Supplier action pending
+                Status         = "PendingSupplier",      
                 AdminNote      = req.AdminNote,
                 IsFromProposal = false,
                 CreatedAt      = DateTime.UtcNow
@@ -157,10 +152,6 @@ namespace BaseCore.APIService.Controllers
             return Ok(new { message = "Tạo yêu cầu biên lai thành công. Đang chờ Supplier xác nhận.", id = receipt.Id, code });
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // PUT /api/SupplierReceipts/{id}/confirm
-        // Supplier xác nhận biên lai (đồng ý với thông tin biên lai)
-        // ─────────────────────────────────────────────────────────────────────
         [HttpPut("{id}/confirm")]
         [Authorize(Roles = "Supplier,Seller")]
         public async Task<IActionResult> Confirm(int id, [FromBody] SupplierReceiptReplyRequest req)
@@ -175,7 +166,6 @@ namespace BaseCore.APIService.Controllers
 
             if (receipt.IsFromProposal)
             {
-                // Proposal flow: Seller confirms
                 if (userRole != "Seller" || receipt.SellerId != userId)
                     return Forbid();
 
@@ -185,9 +175,8 @@ namespace BaseCore.APIService.Controllers
                 receipt.Status       = "Confirmed";
                 receipt.ProcessedAt  = DateTime.UtcNow;
                 if (!string.IsNullOrEmpty(req.Note))
-                    receipt.SupplierNote = req.Note; // or SellerNote
+                    receipt.SupplierNote = req.Note;   
 
-                // Update linked proposal status to Completed
                 var proposal = await _context.SupplierProposals.FirstOrDefaultAsync(p => p.ReceiptId == receipt.Id);
                 if (proposal != null)
                 {
@@ -195,11 +184,9 @@ namespace BaseCore.APIService.Controllers
                     proposal.ProcessedAt = DateTime.UtcNow;
                 }
 
-                // Increase stock
                 receipt.Product.StockQuantity += receipt.Quantity;
                 receipt.Product.UpdatedAt = DateTime.UtcNow;
 
-                // Import price update
                 var product = receipt.Product;
                 var oldQty = product.StockQuantity - receipt.Quantity;
                 var newQty = receipt.Quantity;
@@ -207,7 +194,6 @@ namespace BaseCore.APIService.Controllers
                     ? (product.ImportPrice * oldQty + receipt.UnitPrice * newQty) / (oldQty + newQty)
                     : receipt.UnitPrice;
 
-                // Add StockBatch
                 _context.StockBatches.Add(new StockBatch
                 {
                     ProductId  = receipt.ProductId,
@@ -222,10 +208,8 @@ namespace BaseCore.APIService.Controllers
             }
             else
             {
-                // Request flow: Seller requested, Supplier ships, Seller confirms
                 if (receipt.Status == "PendingSupplier")
                 {
-                    // Supplier confirms they are shipping
                     if (userRole != "Supplier" || receipt.SupplierId != userId)
                         return Forbid();
 
@@ -236,18 +220,15 @@ namespace BaseCore.APIService.Controllers
                 }
                 else if (receipt.Status == "PendingSeller")
                 {
-                    // Seller confirms they received the items
                     if (userRole != "Seller" || receipt.SellerId != userId)
                         return Forbid();
 
                     receipt.Status = "Confirmed";
                     receipt.ProcessedAt = DateTime.UtcNow;
 
-                    // Increase stock
                     receipt.Product.StockQuantity += receipt.Quantity;
                     receipt.Product.UpdatedAt = DateTime.UtcNow;
 
-                    // Import price update
                     var product = receipt.Product;
                     var oldQty = product.StockQuantity - receipt.Quantity;
                     var newQty = receipt.Quantity;
@@ -255,7 +236,6 @@ namespace BaseCore.APIService.Controllers
                         ? (product.ImportPrice * oldQty + receipt.UnitPrice * newQty) / (oldQty + newQty)
                         : receipt.UnitPrice;
 
-                    // Add StockBatch
                     _context.StockBatches.Add(new StockBatch
                     {
                         ProductId  = receipt.ProductId,
@@ -278,10 +258,6 @@ namespace BaseCore.APIService.Controllers
             return Ok(new { message = "Đã xác nhận biên lai thành công." });
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // PUT /api/SupplierReceipts/{id}/dispute
-        // Supplier khiếu nại sai lệch thông tin biên lai
-        // ─────────────────────────────────────────────────────────────────────
         [HttpPut("{id}/dispute")]
         [Authorize(Roles = "Supplier,Seller")]
         public async Task<IActionResult> Dispute(int id, [FromBody] SupplierReceiptReplyRequest req)
@@ -306,10 +282,6 @@ namespace BaseCore.APIService.Controllers
             return Ok(new { message = "Đã ghi nhận khiếu nại." });
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // PUT /api/SupplierReceipts/{id}/resolve
-        // Admin giải quyết khiếu nại của Supplier
-        // ─────────────────────────────────────────────────────────────────────
         [HttpPut("{id}/resolve")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Resolve(int id, [FromBody] AdminResolveRequest req)
@@ -323,7 +295,6 @@ namespace BaseCore.APIService.Controllers
             receipt.AdminNote    = req.AdminNote;
             receipt.ProcessedAt  = DateTime.UtcNow;
 
-            // Nếu Admin điều chỉnh số lượng sau khi khiếu nại
             if (req.AdjustedQuantity.HasValue && req.AdjustedQuantity.Value != receipt.Quantity)
             {
                 var diff    = req.AdjustedQuantity.Value - receipt.Quantity;
@@ -341,10 +312,6 @@ namespace BaseCore.APIService.Controllers
             return Ok(new { message = "Đã giải quyết khiếu nại." });
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // GET /api/SupplierReceipts/stats
-        // Thống kê tóm tắt cho Supplier Dashboard
-        // ─────────────────────────────────────────────────────────────────────
         [HttpGet("stats")]
         [Authorize(Roles = "Admin,Supplier,Seller")]
         public async Task<IActionResult> GetStats()
@@ -379,9 +346,122 @@ namespace BaseCore.APIService.Controllers
 
             return Ok(stats);
         }
-    }
 
-    // ─── Request DTOs ────────────────────────────────────────────────────────
+        [HttpPut("{id}/resolve-dispute")]
+        [Authorize(Roles = "Supplier")]
+        public async Task<IActionResult> ResolveDispute(int id, [FromBody] SupplierReceiptReplyRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req.Note))
+            {
+                return BadRequest("Lý do giải quyết không được để trống.");
+            }
+
+            var receipt = await _context.SupplierReceipts
+                .Include(r => r.Product)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (receipt == null) return NotFound();
+
+            var userId = GetUserId();
+            if (receipt.SupplierId != userId) return Forbid();
+
+            if (receipt.Status != "Disputed")
+                return BadRequest("Biên lai không ở trạng thái đang khiếu nại.");
+
+            receipt.Status = "Resolved";
+            receipt.SupplierNote = req.Note;
+            receipt.ProcessedAt = DateTime.UtcNow;
+
+            var code = $"RC-{DateTime.Now:yyyyMMdd}-{new Random().Next(1000, 9999)}";
+            var newReceipt = new SupplierReceipt
+            {
+                ReceiptCode = code,
+                SupplierId = receipt.SupplierId,
+                SellerId = receipt.SellerId,
+                ProductId = receipt.ProductId,
+                Quantity = receipt.Quantity,
+                UnitPrice = receipt.UnitPrice,
+                TotalAmount = receipt.TotalAmount,
+                Status = receipt.IsFromProposal ? "Pending" : "PendingSupplier",
+                AdminNote = $"Biên lai mới được tạo sau khi giải quyết khiếu nại biên lai {receipt.ReceiptCode}. Lý do: {req.Note}",
+                IsFromProposal = receipt.IsFromProposal,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.SupplierReceipts.Add(newReceipt);
+            await _context.SaveChangesAsync();
+
+            if (receipt.SellerId.HasValue)
+            {
+                try
+                {
+                    await NotificationHelper.NotifyAsync(
+                        _context,
+                        _hubContext,
+                        receipt.SellerId.Value,
+                        "receipt_resolved",
+                        $"Biên lai {receipt.ReceiptCode} đã được giải quyết",
+                        $"Supplier đã xác nhận khiếu nại và tạo biên lai mới {newReceipt.ReceiptCode}. Lý do: {req.Note}"
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error sending notification: {ex.Message}");
+                }
+            }
+
+            return Ok(new { message = "Đã giải quyết khiếu nại và tạo biên lai mới thành công.", newReceiptId = newReceipt.Id, newReceiptCode = newReceipt.ReceiptCode });
+        }
+
+        [HttpPut("{id}/reject-dispute")]
+        [Authorize(Roles = "Supplier")]
+        public async Task<IActionResult> RejectDispute(int id, [FromBody] SupplierReceiptReplyRequest req)
+        {
+            if (string.IsNullOrWhiteSpace(req.Note))
+            {
+                return BadRequest("Lý do từ chối không được để trống.");
+            }
+
+            var receipt = await _context.SupplierReceipts
+                .Include(r => r.Product)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (receipt == null) return NotFound();
+
+            var userId = GetUserId();
+            if (receipt.SupplierId != userId) return Forbid();
+
+            if (receipt.Status != "Disputed")
+                return BadRequest("Biên lai không ở trạng thái đang khiếu nại.");
+
+            receipt.Status = "Cancelled";
+            receipt.SupplierNote = req.Note;
+            receipt.ProcessedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            if (receipt.SellerId.HasValue)
+            {
+                try
+                {
+                    await NotificationHelper.NotifyAsync(
+                        _context,
+                        _hubContext,
+                        receipt.SellerId.Value,
+                        "receipt_cancelled",
+                        $"Biên lai {receipt.ReceiptCode} đã bị hủy khiếu nại",
+                        $"Supplier đã từ chối/hủy khiếu nại cho biên lai {receipt.ReceiptCode} với lý do: {req.Note}"
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error sending notification: {ex.Message}");
+                }
+            }
+
+            return Ok(new { message = "Đã hủy biên lai khiếu nại." });
+        }
+    }
 
     public class CreateReceiptRequest
     {

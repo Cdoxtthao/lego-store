@@ -543,6 +543,7 @@ const ProductModal = ({
     description: product?.description || '',
     price: product?.price != null ? String(product.price) : '',
     oldPrice: product?.oldPrice != null ? String(product.oldPrice) : '',
+    discountPercent: product?.discountPercent != null ? String(product.discountPercent) : '',
     stockQuantity: product?.stockQuantity != null ? String(product.stockQuantity) : '',
     imageUrl: product?.imageUrl || '',
     categoryId: product?.categoryId || 0,
@@ -655,6 +656,33 @@ const ProductModal = ({
     setPreviewImage(url.startsWith('http') ? url : `https://localhost:7175${url}`);
   };
 
+  const handleOldPriceChange = (val: string) => {
+    const oldP = val !== '' ? Number(val) : 0;
+    const pct = form.discountPercent !== '' ? Number(form.discountPercent) : 0;
+    let newPrice = form.price;
+    if (oldP > 0 && pct > 0) {
+      newPrice = String(Math.round(oldP * (1 - pct / 100)));
+    } else if (oldP > 0 && pct === 0) {
+      newPrice = String(oldP);
+    }
+    setForm(prev => ({ ...prev, oldPrice: val, price: newPrice }));
+  };
+
+  const handleDiscountPercentChange = (val: string) => {
+    let pct = val !== '' ? Number(val) : 0;
+    if (pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+    const cleanVal = pct > 0 ? String(pct) : '';
+    const oldP = form.oldPrice !== '' ? Number(form.oldPrice) : 0;
+    let newPrice = form.price;
+    if (oldP > 0 && pct > 0) {
+      newPrice = String(Math.round(oldP * (1 - pct / 100)));
+    } else if (oldP > 0 && pct === 0) {
+      newPrice = String(oldP);
+    }
+    setForm(prev => ({ ...prev, discountPercent: cleanVal, price: newPrice }));
+  };
+
   const handleSave = async () => {
     if (!form.name || !form.price) {
       setError('Vui lòng điền đầy đủ thông tin bắt buộc');
@@ -673,6 +701,7 @@ const ProductModal = ({
           description: form.description,
           price: Number(form.price),
           oldPrice: form.oldPrice !== '' ? Number(form.oldPrice) : undefined,
+          discountPercent: form.discountPercent !== '' ? Number(form.discountPercent) : 0,
           stockQuantity: Number(form.stockQuantity),
           imageUrl: form.imageUrl,
           categoryId: form.categoryId || undefined,
@@ -691,6 +720,7 @@ const ProductModal = ({
           description: form.description,
           price: Number(form.price),
           oldPrice: form.oldPrice !== '' ? Number(form.oldPrice) : undefined,
+          discountPercent: form.discountPercent !== '' ? Number(form.discountPercent) : 0,
           stockQuantity: Number(form.stockQuantity),
           imageUrl: form.imageUrl,
           categoryId: form.categoryId,
@@ -897,15 +927,21 @@ const ProductModal = ({
               </Field>
             </div>
 
-            <Field label="Giá bán" required>
-              <input type="text" inputMode="numeric" value={form.price}
-                onChange={(e) => setForm({ ...form, price: e.target.value })}
+            <Field label="Giá gốc (nếu có)">
+              <input type="text" inputMode="numeric" value={form.oldPrice}
+                onChange={(e) => handleOldPriceChange(e.target.value)}
                 className={inputClass} placeholder="0" />
             </Field>
 
-            <Field label="Giá gốc (nếu có)">
-              <input type="text" inputMode="numeric" value={form.oldPrice}
-                onChange={(e) => setForm({ ...form, oldPrice: e.target.value })}
+            <Field label="Giảm giá (%)">
+              <input type="text" inputMode="numeric" value={form.discountPercent}
+                onChange={(e) => handleDiscountPercentChange(e.target.value)}
+                className={inputClass} placeholder="0" />
+            </Field>
+
+            <Field label="Giá bán" required>
+              <input type="text" inputMode="numeric" value={form.price}
+                onChange={(e) => setForm({ ...form, price: e.target.value })}
                 className={inputClass} placeholder="0" />
             </Field>
 

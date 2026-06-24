@@ -21,6 +21,7 @@ namespace BaseCore.Entities
         public bool IsActive { get; set; } = true;
         public bool IsFeatured { get; set; } = false;
         public int SoldCount { get; set; } = 0;
+        public int DiscountPercent { get; set; } = 0;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
 
